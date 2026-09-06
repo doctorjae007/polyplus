@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronRight, Cloud, CloudOff, Eye, LoaderCircle, Plus, RotateCcw, Settings, Sparkles, Trash2, Trophy, UserPlus } from 'lucide-react'
 import { FACTOR_QUESTIONS, MIXED_FACTOR_QUESTIONS, POSITIVE_FACTOR_QUESTIONS, FactorPlayArea, isFactorCorrect } from './FactorDetective'
+import { GUIDED_QUESTION_COUNT, MIXED_GUIDED_QUESTIONS, POSITIVE_GUIDED_QUESTIONS, GuidedPlayArea, isGuidedCorrect } from './GuidedFactor'
 
 const TEAMS = [
   { name: 'ทีมฟ้า', animal: '🐬', color: '#2878c8', pale: '#ddecff' },
@@ -29,6 +30,7 @@ const QUESTION_COUNT_OPTIONS = [5, 10, 15, 20]
 
 const blankAnswers = () => TEAMS.map(() => [])
 const blankFactorAnswers = () => TEAMS.map(() => [null, null, null, null])
+const blankGuidedAnswers = () => TEAMS.map(() => [null, null])
 const blankMembers = () => TEAMS.map(() => [])
 const STORAGE_KEY = 'factor-rally-state-v4'
 const MEMBER_EMOJIS = ['😀', '😎', '🐯', '🐰', '🐼', '🦁', '🐸', '🐵', '🦋', '⭐', '🚀', '⚽']
@@ -46,6 +48,13 @@ export default function App() {
   const [factorNumberMode, setFactorNumberMode] = useState('mixed')
   const [factorRevealed, setFactorRevealed] = useState(false)
   const [factorFinished, setFactorFinished] = useState(false)
+  const [guidedQuestionIndex, setGuidedQuestionIndex] = useState(0)
+  const [guidedAnswers, setGuidedAnswers] = useState(blankGuidedAnswers)
+  const [guidedScores, setGuidedScores] = useState(() => TEAMS.map(() => 0))
+  const [guidedGameMode, setGuidedGameMode] = useState('same')
+  const [guidedNumberMode, setGuidedNumberMode] = useState('positive')
+  const [guidedRevealed, setGuidedRevealed] = useState(false)
+  const [guidedFinished, setGuidedFinished] = useState(false)
   const [members, setMembers] = useState(blankMembers)
   const [teamNames, setTeamNames] = useState(() => TEAMS.map((team) => team.name))
   const [gameMode, setGameMode] = useState('same')
@@ -62,6 +71,8 @@ export default function App() {
   const teamQuestions = TEAMS.map((_, index) => gameMode === 'same' ? questionBank[questionIndex] : questionBank[(questionIndex + index * 4) % questionBank.length])
   const factorQuestionBank = factorNumberMode === 'mixed' ? MIXED_FACTOR_QUESTIONS : POSITIVE_FACTOR_QUESTIONS
   const factorTeamQuestions = TEAMS.map((_, index) => factorGameMode === 'same' ? factorQuestionBank[factorQuestionIndex] : factorQuestionBank[(factorQuestionIndex + index * 3) % factorQuestionBank.length])
+  const guidedQuestionBank = guidedNumberMode === 'mixed' ? MIXED_GUIDED_QUESTIONS : POSITIVE_GUIDED_QUESTIONS
+  const guidedTeamQuestions = TEAMS.map((_, index) => guidedGameMode === 'same' ? guidedQuestionBank[guidedQuestionIndex] : guidedQuestionBank[(guidedQuestionIndex + index * 3) % guidedQuestionBank.length])
   const question = teamQuestions[0]
   const choices = useMemo(() => numberMode === 'integers' ? Array.from({ length: 13 }, (_, i) => i - 6) : Array.from({ length: 10 }, (_, i) => i + 1), [numberMode])
   const allReady = answers.every((answer) => answer.length === 2)
@@ -75,7 +86,7 @@ export default function App() {
       setQuestionIndex(invalidIndex ? 0 : (state.questionIndex ?? 0))
       setAnswers(invalidIndex ? blankAnswers() : (state.answers ?? blankAnswers()))
       setScores(state.scores ?? TEAMS.map(() => 0))
-      setActivity(state.activity === 'factor' ? 'factor' : 'pairs')
+      setActivity(['pairs', 'guided', 'factor'].includes(state.activity) ? state.activity : 'pairs')
       setFactorQuestionIndex((state.factorQuestionIndex ?? 0) < FACTOR_QUESTIONS.length ? (state.factorQuestionIndex ?? 0) : 0)
       const savedFactorAnswers = Array.isArray(state.factorAnswers) && state.factorAnswers.length === TEAMS.length && state.factorAnswers.every((answer) => Array.isArray(answer) && answer.length === 4)
         ? state.factorAnswers
@@ -86,6 +97,14 @@ export default function App() {
       setFactorNumberMode(state.factorNumberMode === 'positive' ? 'positive' : 'mixed')
       setFactorRevealed(Boolean(state.factorRevealed))
       setFactorFinished(Boolean(state.factorFinished))
+      setGuidedQuestionIndex((state.guidedQuestionIndex ?? 0) < GUIDED_QUESTION_COUNT ? (state.guidedQuestionIndex ?? 0) : 0)
+      const savedGuidedAnswers = Array.isArray(state.guidedAnswers) && state.guidedAnswers.length === TEAMS.length && state.guidedAnswers.every((answer) => Array.isArray(answer) && answer.length === 2) ? state.guidedAnswers : blankGuidedAnswers()
+      setGuidedAnswers(savedGuidedAnswers)
+      setGuidedScores(state.guidedScores ?? TEAMS.map(() => 0))
+      setGuidedGameMode(state.guidedGameMode === 'different' ? 'different' : 'same')
+      setGuidedNumberMode(state.guidedNumberMode === 'mixed' ? 'mixed' : 'positive')
+      setGuidedRevealed(Boolean(state.guidedRevealed))
+      setGuidedFinished(Boolean(state.guidedFinished))
       setMembers(state.members ?? blankMembers())
       setTeamNames(state.teamNames ?? TEAMS.map((team) => team.name))
       setGameMode(state.gameMode ?? 'same')
@@ -116,7 +135,7 @@ export default function App() {
 
   useEffect(() => {
     if (!hydrated) return
-    const state = { activity, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorGameMode, factorNumberMode, factorRevealed, factorFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished }
+    const state = { activity, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorGameMode, factorNumberMode, factorRevealed, factorFinished, guidedQuestionIndex, guidedAnswers, guidedScores, guidedGameMode, guidedNumberMode, guidedRevealed, guidedFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
     setSaveStatus('saving')
     const timer = setTimeout(async () => {
@@ -127,7 +146,7 @@ export default function App() {
       } catch { setSaveStatus('offline') }
     }, 450)
     return () => clearTimeout(timer)
-  }, [hydrated, activity, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorGameMode, factorNumberMode, factorRevealed, factorFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished])
+  }, [hydrated, activity, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorGameMode, factorNumberMode, factorRevealed, factorFinished, guidedQuestionIndex, guidedAnswers, guidedScores, guidedGameMode, guidedNumberMode, guidedRevealed, guidedFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished])
 
   const selectNumber = (teamIndex, number) => {
     if (revealed) return
@@ -182,6 +201,29 @@ export default function App() {
     setFactorRevealed(false); setFactorFinished(false); setShowReset(false)
   }
 
+  const selectGuidedNumber = (teamIndex, slot, number) => {
+    if (guidedRevealed) return
+    setGuidedAnswers((current) => current.map((answer, index) => index === teamIndex ? answer.map((value, answerSlot) => answerSlot === slot ? number : value) : answer))
+  }
+
+  const revealGuided = () => {
+    if (guidedRevealed || !guidedAnswers.every((answer) => answer.filter(Number.isFinite).length === 2)) return
+    setGuidedScores((current) => current.map((score, index) => score + (isGuidedCorrect(guidedAnswers[index], guidedTeamQuestions[index]) ? 1 : 0)))
+    setGuidedRevealed(true)
+  }
+
+  const nextGuidedQuestion = () => {
+    if (guidedQuestionIndex === GUIDED_QUESTION_COUNT - 1) return setGuidedFinished(true)
+    setGuidedQuestionIndex((value) => value + 1)
+    setGuidedAnswers(blankGuidedAnswers())
+    setGuidedRevealed(false)
+  }
+
+  const resetGuided = () => {
+    setGuidedQuestionIndex(0); setGuidedAnswers(blankGuidedAnswers()); setGuidedScores(TEAMS.map(() => 0))
+    setGuidedRevealed(false); setGuidedFinished(false); setShowReset(false)
+  }
+
   const applyFactorSettings = (names, mode, nextNumberMode) => {
     setTeamNames(names.map((name, index) => name.trim() || TEAMS[index].name))
     if (mode !== factorGameMode || nextNumberMode !== factorNumberMode) {
@@ -192,6 +234,21 @@ export default function App() {
       if (factorRevealed) {
         if (factorQuestionIndex >= FACTOR_QUESTIONS.length - 1) setFactorFinished(true)
         else setFactorQuestionIndex((value) => value + 1)
+      }
+    }
+    setShowSettings(false)
+  }
+
+  const applyGuidedSettings = (names, mode, nextNumberMode) => {
+    setTeamNames(names.map((name, index) => name.trim() || TEAMS[index].name))
+    if (mode !== guidedGameMode || nextNumberMode !== guidedNumberMode) {
+      setGuidedGameMode(mode)
+      setGuidedNumberMode(nextNumberMode)
+      setGuidedAnswers(blankGuidedAnswers())
+      setGuidedRevealed(false)
+      if (guidedRevealed) {
+        if (guidedQuestionIndex >= GUIDED_QUESTION_COUNT - 1) setGuidedFinished(true)
+        else setGuidedQuestionIndex((value) => value + 1)
       }
     }
     setShowSettings(false)
@@ -224,25 +281,32 @@ export default function App() {
 
   if (!hydrated) return <main className="paper-grid grid min-h-screen place-items-center"><div className="text-center text-[#193b2b]"><LoaderCircle className="mx-auto animate-spin" size={44}/><p className="mt-3 font-black">กำลังโหลดห้องเรียน…</p></div></main>
   if (activity === 'pairs' && finished) return <Results scores={scores} members={members} teamNames={teamNames} totalQuestions={totalQuestions} onReset={reset} />
+  if (activity === 'guided' && guidedFinished) return <Results scores={guidedScores} members={members} teamNames={teamNames} totalQuestions={GUIDED_QUESTION_COUNT} onReset={resetGuided} activityName="คู่คิดพิชิตวงเล็บ" />
   if (activity === 'factor' && factorFinished) return <Results scores={factorScores} members={members} teamNames={teamNames} totalQuestions={FACTOR_QUESTIONS.length} onReset={resetFactor} activityName="นักสืบตัวประกอบ" />
 
-  const activeScores = activity === 'factor' ? factorScores : scores
-  const activeAnswers = activity === 'factor' ? factorAnswers : answers
-  const activeQuestions = activity === 'factor' ? factorTeamQuestions : teamQuestions
-  const activeTotal = activity === 'factor' ? FACTOR_QUESTIONS.length : totalQuestions
-  const activeRevealed = activity === 'factor' ? factorRevealed : revealed
-  const activeReset = activity === 'factor' ? resetFactor : reset
+  const activeScores = activity === 'factor' ? factorScores : activity === 'guided' ? guidedScores : scores
+  const activeAnswers = activity === 'factor' ? factorAnswers : activity === 'guided' ? guidedAnswers : answers
+  const activeQuestions = activity === 'factor' ? factorTeamQuestions : activity === 'guided' ? guidedTeamQuestions : teamQuestions
+  const activeTotal = activity === 'factor' ? FACTOR_QUESTIONS.length : activity === 'guided' ? GUIDED_QUESTION_COUNT : totalQuestions
+  const activeRevealed = activity === 'factor' ? factorRevealed : activity === 'guided' ? guidedRevealed : revealed
+  const activeReset = activity === 'factor' ? resetFactor : activity === 'guided' ? resetGuided : reset
+  const activeCorrect = activity === 'factor' ? isFactorCorrect : activity === 'guided' ? isGuidedCorrect : isCorrect
+  const activeAnswerSize = activity === 'factor' ? 4 : 2
+  const activityTitle = activity === 'factor' ? 'นักสืบตัวประกอบ' : activity === 'guided' ? 'คู่คิดพิชิตวงเล็บ' : 'คู่คูณชวนคิด'
+  const activityIcon = activity === 'factor' ? '🔎' : activity === 'guided' ? '🧩' : '×'
 
   return <main className="paper-grid min-h-screen p-3 lg:p-4">
     <div className="game-shell mx-auto max-w-[1600px] gap-4">
-      <ScoreSidebar scores={activeScores} answers={activeAnswers} members={members} teamNames={teamNames} questions={activeQuestions} totalQuestions={activeTotal} revealed={activeRevealed} isAnswerCorrect={activity === 'factor' ? isFactorCorrect : isCorrect} answerSize={activity === 'factor' ? 4 : 2} onAdd={setMemberTeam} onRemove={removeMember} />
+      <ScoreSidebar scores={activeScores} answers={activeAnswers} members={members} teamNames={teamNames} questions={activeQuestions} totalQuestions={activeTotal} revealed={activeRevealed} isAnswerCorrect={activeCorrect} answerSize={activeAnswerSize} onAdd={setMemberTeam} onRemove={removeMember} />
 
       <div className="min-w-0">
         <header className="mb-3 flex min-h-12 flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-3"><div className={`grid size-10 place-items-center rounded-xl text-xl font-black text-white ${activity === 'factor' ? 'bg-[#30265f]' : 'bg-[#193b2b]'}`}>{activity === 'factor' ? '🔎' : '×'}</div><div><h1 className="text-xl font-black text-[#193b2b]">{activity === 'factor' ? 'นักสืบตัวประกอบ' : 'คู่คูณชวนคิด'}</h1><p className="text-xs font-bold text-[#6d756f]">ทุกกลุ่มเลือกพร้อมกัน · ครูเฉลยครั้งเดียว</p></div></div>
+          <div className="flex items-center gap-3"><div className={`grid size-10 place-items-center rounded-xl text-xl font-black text-white ${activity === 'factor' ? 'bg-[#30265f]' : activity === 'guided' ? 'bg-[#174c63]' : 'bg-[#193b2b]'}`}>{activityIcon}</div><div><h1 className="text-xl font-black text-[#193b2b]">{activityTitle}</h1><p className="text-xs font-bold text-[#6d756f]">ทุกกลุ่มเลือกพร้อมกัน · ครูเฉลยครั้งเดียว</p></div></div>
           <div className="flex flex-wrap justify-end gap-2">
             <SaveStatus status={saveStatus}/>
-            <button onClick={() => setActivity(activity === 'factor' ? 'pairs' : 'factor')} className="flex min-h-10 items-center gap-2 rounded-xl bg-[#ffd05a] px-3 text-sm font-black text-[#473510] shadow-sm"><Sparkles size={16}/> {activity === 'factor' ? 'ไปเกมที่ 1' : 'ไปเกมที่ 2'}</button>
+            <div className="flex rounded-xl bg-white p-1 shadow-sm" aria-label="เลือกแบบฝึก">
+              {[['pairs', '1.1 คู่คูณ'], ['guided', '1.2 คู่คิด'], ['factor', '2 นักสืบ']].map(([value, label]) => <button key={value} onClick={() => setActivity(value)} className={`min-h-8 rounded-lg px-2.5 text-xs font-black transition ${activity === value ? 'bg-[#ffd05a] text-[#473510]' : 'text-[#647069] hover:bg-[#f4f1e9]'}`}>{label}</button>)}
+            </div>
             <button onClick={() => setShowSettings(true)} className="flex min-h-10 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white px-3 text-sm font-bold text-[#5c635e]"><Settings size={16}/> ตั้งค่าเกม</button>
             <button onClick={() => setShowReset(true)} className="flex min-h-10 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white px-3 text-sm font-bold text-[#5c635e]"><RotateCcw size={16}/> เริ่มใหม่</button>
           </div>
@@ -250,6 +314,8 @@ export default function App() {
 
         {activity === 'factor'
           ? <FactorPlayArea teams={TEAMS} teamNames={teamNames} questions={factorTeamQuestions} index={factorQuestionIndex} answers={factorAnswers} revealed={factorRevealed} numberMode={factorNumberMode} onSelect={selectFactorNumber} onReveal={revealFactor} onNext={nextFactorQuestion}/>
+          : activity === 'guided'
+            ? <GuidedPlayArea teams={TEAMS} teamNames={teamNames} questions={guidedTeamQuestions} index={guidedQuestionIndex} answers={guidedAnswers} revealed={guidedRevealed} numberMode={guidedNumberMode} onSelect={selectGuidedNumber} onReveal={revealGuided} onNext={nextGuidedQuestion}/>
           : <>
             <QuestionBanner question={question} index={questionIndex} totalQuestions={totalQuestions} revealed={revealed} mode={gameMode} numberMode={numberMode} />
             <section className="team-board-grid mt-3 grid gap-3" aria-label="คำตอบของทั้งสี่กลุ่ม">
@@ -266,9 +332,18 @@ export default function App() {
     </div>
     {showReset && <ConfirmReset onCancel={() => setShowReset(false)} onConfirm={activeReset} />}
     {memberTeam !== null && <MemberModal team={{ ...TEAMS[memberTeam], name: teamNames[memberTeam] }} onCancel={() => setMemberTeam(null)} onAdd={addMember} />}
-    {showSettings && (activity === 'factor'
-      ? <FactorSettingsModal names={teamNames} mode={factorGameMode} numberMode={factorNumberMode} currentQuestion={factorQuestionIndex + 1} onCancel={() => setShowSettings(false)} onApply={applyFactorSettings}/>
-      : <SettingsModal names={teamNames} mode={gameMode} numberMode={numberMode} totalQuestions={totalQuestions} currentQuestion={questionIndex + 1} onCancel={() => setShowSettings(false)} onApply={applySettings} />)}
+    {showSettings && (activity === 'pairs'
+      ? <SettingsModal names={teamNames} mode={gameMode} numberMode={numberMode} totalQuestions={totalQuestions} currentQuestion={questionIndex + 1} onCancel={() => setShowSettings(false)} onApply={applySettings} />
+      : <FactorSettingsModal
+          names={teamNames}
+          mode={activity === 'factor' ? factorGameMode : guidedGameMode}
+          numberMode={activity === 'factor' ? factorNumberMode : guidedNumberMode}
+          currentQuestion={(activity === 'factor' ? factorQuestionIndex : guidedQuestionIndex) + 1}
+          title={activity === 'factor' ? 'ตั้งค่านักสืบตัวประกอบ' : 'ตั้งค่าคู่คิดพิชิตวงเล็บ'}
+          icon={activity === 'factor' ? '🔎' : '🧩'}
+          onCancel={() => setShowSettings(false)}
+          onApply={activity === 'factor' ? applyFactorSettings : applyGuidedSettings}
+        />)}
   </main>
 }
 
@@ -304,13 +379,13 @@ function ScoreSidebar({ scores, answers, members, teamNames, questions, totalQue
   </aside>
 }
 
-function FactorSettingsModal({ names, mode, numberMode, currentQuestion, onCancel, onApply }) {
+function FactorSettingsModal({ names, mode, numberMode, currentQuestion, title = 'ตั้งค่านักสืบตัวประกอบ', icon = '🔎', onCancel, onApply }) {
   const [draftNames, setDraftNames] = useState(names)
   const [draftMode, setDraftMode] = useState(mode)
   const [draftNumberMode, setDraftNumberMode] = useState(numberMode)
   return <div className="fixed inset-0 z-30 grid place-items-center overflow-y-auto bg-[#17231d]/65 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="factor-settings-title">
     <form onSubmit={(event) => { event.preventDefault(); onApply(draftNames, draftMode, draftNumberMode) }} className="w-full max-w-2xl rounded-[28px] bg-white p-6 shadow-2xl">
-      <div className="flex items-center gap-3"><div className="grid size-12 place-items-center rounded-2xl bg-[#eee9ff] text-2xl">🔎</div><div><p className="text-xs font-black uppercase tracking-wider text-[#8276b4]">Factor settings</p><h2 id="factor-settings-title" className="text-2xl font-black">ตั้งค่านักสืบตัวประกอบ</h2></div></div>
+      <div className="flex items-center gap-3"><div className="grid size-12 place-items-center rounded-2xl bg-[#eee9ff] text-2xl">{icon}</div><div><p className="text-xs font-black uppercase tracking-wider text-[#8276b4]">Factor settings</p><h2 id="factor-settings-title" className="text-2xl font-black">{title}</h2></div></div>
       <p className="mt-5 text-sm font-black text-[#4e5a53]">ชื่อกลุ่ม</p>
       <div className="mt-2 grid grid-cols-2 gap-3">{TEAMS.map((team, index) => <label key={team.name} className="flex items-center gap-2 rounded-xl border-2 p-2" style={{ borderColor: team.color, backgroundColor: team.pale }}><span className="text-2xl">{team.animal}</span><input value={draftNames[index]} onChange={(event) => setDraftNames((current) => current.map((name, i) => i === index ? event.target.value : name))} maxLength={20} className="min-w-0 flex-1 rounded-lg bg-white/85 px-3 py-2 font-black outline-none" aria-label={`ชื่อกลุ่มที่ ${index + 1}`}/></label>)}</div>
 
@@ -322,7 +397,7 @@ function FactorSettingsModal({ names, mode, numberMode, currentQuestion, onCance
 
       <p className="mt-5 text-sm font-black text-[#4e5a53]">ชนิดของจำนวน</p>
       <div className="mt-2 grid gap-3 sm:grid-cols-2">
-        <button type="button" onClick={() => setDraftNumberMode('positive')} className={`rounded-2xl border-2 p-4 text-left ${draftNumberMode === 'positive' ? 'border-[#249263] bg-[#e8f7ef]' : 'border-[#ded8cb]'}`}><strong className="text-lg">🌱 จำนวนบวก</strong><p className="mt-1 text-sm font-bold text-[#68736d]">ตัวหน้าและตัวหลังเป็นจำนวนบวก</p></button>
+        <button type="button" onClick={() => setDraftNumberMode('positive')} className={`rounded-2xl border-2 p-4 text-left ${draftNumberMode === 'positive' ? 'border-[#249263] bg-[#e8f7ef]' : 'border-[#ded8cb]'}`}><strong className="text-lg">🌱 จำนวนบวก</strong><p className="mt-1 text-sm font-bold text-[#68736d]">ใช้เฉพาะจำนวนบวก</p></button>
         <button type="button" onClick={() => setDraftNumberMode('mixed')} className={`rounded-2xl border-2 p-4 text-left ${draftNumberMode === 'mixed' ? 'border-[#8459c4] bg-[#f1ebfb]' : 'border-[#ded8cb]'}`}><strong className="text-lg">± จำนวนเต็มแบบผสม</strong><p className="mt-1 text-sm font-bold text-[#68736d]">มีทั้งจำนวนบวกและจำนวนติดลบ</p></button>
       </div>
 

@@ -77,6 +77,18 @@ body {
     border-left: 2px dashed rgba(48, 38, 95, .15);
   }
   .factor-number-pad { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .guided-card-body { grid-template-columns: minmax(0, 1fr) 180px; align-items: stretch; }
+  .guided-number-panel { border-left: 2px dashed rgba(23, 76, 99, .15); }
+}
+
+.linked-number {
+  display: inline-grid;
+  min-width: 1.75rem;
+  place-items: center;
+  border-radius: .45rem;
+  background: white;
+  color: #13718a;
+  box-shadow: 0 1px 3px rgba(20, 67, 79, .14);
 }
 
 @media (min-width: 1400px) {
