@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import { ChevronRight, Eye, Search } from 'lucide-react'
+import { ChevronRight, Eye } from 'lucide-react'
 
 export const FACTOR_QUESTIONS = [
   { p: 1, q: 1, r: -3, s: 5 },
@@ -47,28 +47,11 @@ export function FactorPlayArea({ teams, teamNames, question, index, answers, rev
     .map((teamIndex) => teamNames[teamIndex])
 
   return <>
-    <section className="factor-banner flex min-h-[86px] items-center justify-between gap-3 rounded-[22px] bg-[#30265f] px-4 py-2 text-white shadow-lg">
-      <div className="shrink-0">
-        <p className="text-xs font-bold text-[#d6cff8]">ข้อ {index + 1}/10</p>
-        <h2 className="mt-1 flex items-center gap-2 text-lg font-black"><Search size={20}/> ตารางคูณทแยง</h2>
-        <p className="mt-1 text-xs font-bold text-[#c9c0ef]">เติมตัวหน้าและตัวหลัง ระบบหาพจน์กลางให้</p>
-      </div>
-      <div className="flex flex-1 items-center justify-center">
-        <div className="rounded-2xl bg-white px-6 py-1.5 text-center text-[#30265f] shadow-inner">
-          <p className="text-xs font-black uppercase tracking-wider text-[#8276b4]">แยกตัวประกอบ</p>
-          <strong className="text-3xl font-black">{polynomial(question)}</strong>
-        </div>
-      </div>
-      <div className={`hidden min-w-40 rounded-xl px-3 py-1.5 text-center sm:block ${revealed ? 'pop bg-[#ffd86a] text-[#39270a]' : 'bg-white/10 text-[#d6cff8]'}`}>
-        <p className="text-[10px] font-black uppercase">{revealed ? 'เฉลย' : 'คูณทแยง ↘ ↙'}</p>
-        <strong className="text-sm">{revealed ? `${linearFactor(question.p, question.r)}${linearFactor(question.q, question.s)}` : 'หน้า × หลัง แล้วบวกกัน'}</strong>
-      </div>
-    </section>
-
-    <section className="team-board-grid mt-3 grid gap-3" aria-label="ตารางแยกตัวประกอบของทั้งสี่กลุ่ม">
+    <section className="team-board-grid grid gap-3" aria-label="ตารางแยกตัวประกอบของทั้งสี่กลุ่ม">
       {teams.map((team, teamIndex) => <FactorTeamCard
         key={team.name}
         team={{ ...team, name: teamNames[teamIndex] }}
+        questionIndex={index}
         question={question}
         answer={answers[teamIndex]}
         revealed={revealed}
@@ -89,7 +72,7 @@ export function FactorPlayArea({ teams, teamNames, question, index, answers, rev
   </>
 }
 
-function FactorTeamCard({ team, question, answer, revealed, onSelect }) {
+function FactorTeamCard({ team, questionIndex, question, answer, revealed, onSelect }) {
   const [activeSlot, setActiveSlot] = useState(0)
   const arrowMarkerId = useId().replaceAll(':', '')
   const ready = filled(answer)
@@ -115,8 +98,13 @@ function FactorTeamCard({ team, question, answer, revealed, onSelect }) {
   }
 
   return <article className={`relative overflow-hidden rounded-[22px] border-2 p-3 shadow-sm ${revealed ? (correct ? 'ring-4 ring-[#52b77d]/30' : 'opacity-90') : ''}`} style={{ borderColor: team.color, backgroundColor: team.pale }}>
-    <div className="mb-2 flex items-center justify-between gap-2">
+    <div className="mb-2 flex items-center gap-2">
       <div className="flex min-w-0 items-center gap-2"><span className="text-2xl">{team.animal}</span><h3 className="truncate text-lg font-black" style={{ color: team.color }}>{team.name}</h3></div>
+      <div className="ml-1 flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl bg-white/80 px-3 py-1.5 shadow-sm">
+        <span className="shrink-0 text-[10px] font-black text-[#777083]">ข้อ {questionIndex + 1}/10</span>
+        <strong className="truncate text-xl font-black text-[#30265f]">{polynomial(question)}</strong>
+        {revealed && <span className="hidden shrink-0 rounded-lg bg-[#fff0b9] px-2 py-1 text-xs font-black text-[#5a4311] xl:inline">เฉลย {linearFactor(question.p, question.r)}{linearFactor(question.q, question.s)}</span>}
+      </div>
       <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black ${revealed ? (correct ? 'bg-[#17613e] text-white' : 'bg-[#b84f37] text-white') : ready ? 'bg-white text-[#3f5b4c]' : 'bg-black/5 text-[#6f766f]'}`}>{revealed ? (correct ? 'ถูก +1' : 'ตรวจตาราง') : ready ? 'พร้อม' : 'เติม 4 ช่อง'}</span>
     </div>
 
