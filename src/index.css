@@ -44,8 +44,8 @@ body {
 .score-sidebar { position: relative; }
 .team-board-grid { grid-template-columns: 1fr; }
 .factor-cross-arrows {
-  left: 8.75rem;
-  top: 3rem;
+  left: 11.75rem;
+  top: 2.75rem;
   width: 10rem;
   height: 4.5rem;
   filter: drop-shadow(0 2px 1px rgba(48, 38, 95, .18));

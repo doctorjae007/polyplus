@@ -47,19 +47,19 @@ export function FactorPlayArea({ teams, teamNames, question, index, answers, rev
     .map((teamIndex) => teamNames[teamIndex])
 
   return <>
-    <section className="factor-banner flex min-h-[116px] items-center justify-between gap-4 rounded-[24px] bg-[#30265f] px-5 py-4 text-white shadow-lg">
+    <section className="factor-banner flex min-h-[86px] items-center justify-between gap-3 rounded-[22px] bg-[#30265f] px-4 py-2 text-white shadow-lg">
       <div className="shrink-0">
         <p className="text-xs font-bold text-[#d6cff8]">ข้อ {index + 1}/10</p>
         <h2 className="mt-1 flex items-center gap-2 text-lg font-black"><Search size={20}/> ตารางคูณทแยง</h2>
         <p className="mt-1 text-xs font-bold text-[#c9c0ef]">เติมตัวหน้าและตัวหลัง ระบบหาพจน์กลางให้</p>
       </div>
       <div className="flex flex-1 items-center justify-center">
-        <div className="rounded-2xl bg-white px-8 py-3 text-center text-[#30265f] shadow-inner">
+        <div className="rounded-2xl bg-white px-6 py-1.5 text-center text-[#30265f] shadow-inner">
           <p className="text-xs font-black uppercase tracking-wider text-[#8276b4]">แยกตัวประกอบ</p>
-          <strong className="text-3xl font-black sm:text-4xl">{polynomial(question)}</strong>
+          <strong className="text-3xl font-black">{polynomial(question)}</strong>
         </div>
       </div>
-      <div className={`hidden min-w-40 rounded-xl px-3 py-2 text-center sm:block ${revealed ? 'pop bg-[#ffd86a] text-[#39270a]' : 'bg-white/10 text-[#d6cff8]'}`}>
+      <div className={`hidden min-w-40 rounded-xl px-3 py-1.5 text-center sm:block ${revealed ? 'pop bg-[#ffd86a] text-[#39270a]' : 'bg-white/10 text-[#d6cff8]'}`}>
         <p className="text-[10px] font-black uppercase">{revealed ? 'เฉลย' : 'คูณทแยง ↘ ↙'}</p>
         <strong className="text-sm">{revealed ? `${linearFactor(question.p, question.r)}${linearFactor(question.q, question.s)}` : 'หน้า × หลัง แล้วบวกกัน'}</strong>
       </div>
