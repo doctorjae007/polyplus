@@ -1,21 +1,10 @@
-const SCHEMA_SQL = `CREATE TABLE IF NOT EXISTS game_state (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
-  data TEXT NOT NULL,
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-)`
-
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status,
   headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
 })
 
-async function ensureSchema(db) {
-  await db.prepare(SCHEMA_SQL).run()
-}
-
 async function handleGameState(request, env) {
   if (!env.DB) return json({ error: 'Database binding is unavailable' }, 503)
-  await ensureSchema(env.DB)
 
   if (request.method === 'GET') {
     const row = await env.DB.prepare('SELECT data, updated_at FROM game_state WHERE id = ?').bind(1).first()

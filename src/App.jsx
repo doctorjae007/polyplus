@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronRight, Cloud, CloudOff, Eye, LoaderCircle, Plus, RotateCcw, Settings, Sparkles, Trash2, Trophy, UserPlus } from 'lucide-react'
+import { FACTOR_QUESTIONS, FactorPlayArea, isFactorCorrect } from './FactorDetective'
 
 const TEAMS = [
   { name: 'ทีมฟ้า', animal: '🐬', color: '#2878c8', pale: '#ddecff' },
@@ -33,9 +34,15 @@ const MEMBER_EMOJIS = ['😀', '😎', '🐯', '🐰', '🐼', '🦁', '🐸', '
 const isCorrect = (answer, q) => answer.length === 2 && answer[0] * answer[1] === q.product && answer[0] + answer[1] === q.sum
 
 export default function App() {
+  const [activity, setActivity] = useState('pairs')
   const [questionIndex, setQuestionIndex] = useState(0)
   const [answers, setAnswers] = useState(blankAnswers)
   const [scores, setScores] = useState(() => TEAMS.map(() => 0))
+  const [factorQuestionIndex, setFactorQuestionIndex] = useState(0)
+  const [factorAnswers, setFactorAnswers] = useState(blankAnswers)
+  const [factorScores, setFactorScores] = useState(() => TEAMS.map(() => 0))
+  const [factorRevealed, setFactorRevealed] = useState(false)
+  const [factorFinished, setFactorFinished] = useState(false)
   const [members, setMembers] = useState(blankMembers)
   const [teamNames, setTeamNames] = useState(() => TEAMS.map((team) => team.name))
   const [gameMode, setGameMode] = useState('same')
@@ -63,6 +70,12 @@ export default function App() {
       setQuestionIndex(invalidIndex ? 0 : (state.questionIndex ?? 0))
       setAnswers(invalidIndex ? blankAnswers() : (state.answers ?? blankAnswers()))
       setScores(state.scores ?? TEAMS.map(() => 0))
+      setActivity(state.activity === 'factor' ? 'factor' : 'pairs')
+      setFactorQuestionIndex((state.factorQuestionIndex ?? 0) < FACTOR_QUESTIONS.length ? (state.factorQuestionIndex ?? 0) : 0)
+      setFactorAnswers(state.factorAnswers ?? blankAnswers())
+      setFactorScores(state.factorScores ?? TEAMS.map(() => 0))
+      setFactorRevealed(Boolean(state.factorRevealed))
+      setFactorFinished(Boolean(state.factorFinished))
       setMembers(state.members ?? blankMembers())
       setTeamNames(state.teamNames ?? TEAMS.map((team) => team.name))
       setGameMode(state.gameMode ?? 'same')
@@ -93,7 +106,7 @@ export default function App() {
 
   useEffect(() => {
     if (!hydrated) return
-    const state = { questionIndex, answers, scores, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished }
+    const state = { activity, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorRevealed, factorFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
     setSaveStatus('saving')
     const timer = setTimeout(async () => {
@@ -104,7 +117,7 @@ export default function App() {
       } catch { setSaveStatus('offline') }
     }, 450)
     return () => clearTimeout(timer)
-  }, [hydrated, questionIndex, answers, scores, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished])
+  }, [hydrated, activity, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorRevealed, factorFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished])
 
   const selectNumber = (teamIndex, number) => {
     if (revealed) return
@@ -133,6 +146,34 @@ export default function App() {
     setRevealed(false); setFinished(false); setShowReset(false)
   }
 
+  const selectFactorNumber = (teamIndex, number) => {
+    if (factorRevealed) return
+    setFactorAnswers((current) => current.map((answer, index) => {
+      if (index !== teamIndex) return answer
+      if (answer.includes(number)) return answer.filter((value) => value !== number)
+      return answer.length < 2 ? [...answer, number] : [answer[1], number]
+    }))
+  }
+
+  const revealFactor = () => {
+    if (factorRevealed || !factorAnswers.every((answer) => answer.length === 2)) return
+    const factorQuestion = FACTOR_QUESTIONS[factorQuestionIndex]
+    setFactorScores((current) => current.map((score, index) => score + (isFactorCorrect(factorAnswers[index], factorQuestion) ? 1 : 0)))
+    setFactorRevealed(true)
+  }
+
+  const nextFactorQuestion = () => {
+    if (factorQuestionIndex === FACTOR_QUESTIONS.length - 1) return setFactorFinished(true)
+    setFactorQuestionIndex((value) => value + 1)
+    setFactorAnswers(blankAnswers())
+    setFactorRevealed(false)
+  }
+
+  const resetFactor = () => {
+    setFactorQuestionIndex(0); setFactorAnswers(blankAnswers()); setFactorScores(TEAMS.map(() => 0))
+    setFactorRevealed(false); setFactorFinished(false); setShowReset(false)
+  }
+
   const addMember = (name, emoji) => {
     setMembers((current) => current.map((list, index) => index === memberTeam ? [...list, { id: crypto.randomUUID(), name, emoji }] : list))
     setMemberTeam(null)
@@ -159,33 +200,49 @@ export default function App() {
   }
 
   if (!hydrated) return <main className="paper-grid grid min-h-screen place-items-center"><div className="text-center text-[#193b2b]"><LoaderCircle className="mx-auto animate-spin" size={44}/><p className="mt-3 font-black">กำลังโหลดห้องเรียน…</p></div></main>
-  if (finished) return <Results scores={scores} members={members} teamNames={teamNames} totalQuestions={totalQuestions} onReset={reset} />
+  if (activity === 'pairs' && finished) return <Results scores={scores} members={members} teamNames={teamNames} totalQuestions={totalQuestions} onReset={reset} />
+  if (activity === 'factor' && factorFinished) return <Results scores={factorScores} members={members} teamNames={teamNames} totalQuestions={FACTOR_QUESTIONS.length} onReset={resetFactor} activityName="นักสืบตัวประกอบ" />
+
+  const factorQuestion = FACTOR_QUESTIONS[factorQuestionIndex]
+  const activeScores = activity === 'factor' ? factorScores : scores
+  const activeAnswers = activity === 'factor' ? factorAnswers : answers
+  const activeQuestions = activity === 'factor' ? TEAMS.map(() => factorQuestion) : teamQuestions
+  const activeTotal = activity === 'factor' ? FACTOR_QUESTIONS.length : totalQuestions
+  const activeRevealed = activity === 'factor' ? factorRevealed : revealed
+  const activeReset = activity === 'factor' ? resetFactor : reset
 
   return <main className="paper-grid min-h-screen p-3 lg:p-4">
     <div className="game-shell mx-auto max-w-[1600px] gap-4">
-      <ScoreSidebar scores={scores} answers={answers} members={members} teamNames={teamNames} questions={teamQuestions} totalQuestions={totalQuestions} revealed={revealed} onAdd={setMemberTeam} onRemove={removeMember} />
+      <ScoreSidebar scores={activeScores} answers={activeAnswers} members={members} teamNames={teamNames} questions={activeQuestions} totalQuestions={activeTotal} revealed={activeRevealed} onAdd={setMemberTeam} onRemove={removeMember} />
 
       <div className="min-w-0">
-        <header className="mb-3 flex h-12 items-center justify-between gap-3">
-          <div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-xl bg-[#193b2b] text-xl font-black text-white">×</div><div><h1 className="text-xl font-black text-[#193b2b]">คู่คูณชวนคิด</h1><p className="text-xs font-bold text-[#6d756f]">ทุกกลุ่มเลือกพร้อมกัน · ครูเฉลยครั้งเดียว</p></div></div>
-          <div className="flex gap-2"><SaveStatus status={saveStatus}/><button onClick={() => setShowSettings(true)} className="flex min-h-10 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white px-3 text-sm font-bold text-[#5c635e]"><Settings size={16}/> ตั้งค่าเกม</button><button onClick={() => setShowReset(true)} className="flex min-h-10 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white px-3 text-sm font-bold text-[#5c635e]"><RotateCcw size={16}/> เริ่มใหม่</button></div>
+        <header className="mb-3 flex min-h-12 flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-3"><div className={`grid size-10 place-items-center rounded-xl text-xl font-black text-white ${activity === 'factor' ? 'bg-[#30265f]' : 'bg-[#193b2b]'}`}>{activity === 'factor' ? '🔎' : '×'}</div><div><h1 className="text-xl font-black text-[#193b2b]">{activity === 'factor' ? 'นักสืบตัวประกอบ' : 'คู่คูณชวนคิด'}</h1><p className="text-xs font-bold text-[#6d756f]">ทุกกลุ่มเลือกพร้อมกัน · ครูเฉลยครั้งเดียว</p></div></div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <SaveStatus status={saveStatus}/>
+            <button onClick={() => setActivity(activity === 'factor' ? 'pairs' : 'factor')} className="flex min-h-10 items-center gap-2 rounded-xl bg-[#ffd05a] px-3 text-sm font-black text-[#473510] shadow-sm"><Sparkles size={16}/> {activity === 'factor' ? 'ไปเกมที่ 1' : 'ไปเกมที่ 2'}</button>
+            <button onClick={() => setShowSettings(true)} className="flex min-h-10 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white px-3 text-sm font-bold text-[#5c635e]"><Settings size={16}/> ตั้งค่ากลุ่ม</button>
+            <button onClick={() => setShowReset(true)} className="flex min-h-10 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white px-3 text-sm font-bold text-[#5c635e]"><RotateCcw size={16}/> เริ่มใหม่</button>
+          </div>
         </header>
 
-        <QuestionBanner question={question} index={questionIndex} totalQuestions={totalQuestions} revealed={revealed} mode={gameMode} numberMode={numberMode} />
-
-        <section className="team-board-grid mt-3 grid gap-3" aria-label="คำตอบของทั้งสี่กลุ่ม">
-          {TEAMS.map((team, index) => <TeamCard key={team.name} team={{ ...team, name: teamNames[index] }} question={teamQuestions[index]} showQuestion={gameMode === 'different'} integerMode={numberMode === 'integers'} answer={answers[index]} choices={choices} revealed={revealed} correct={revealed && isCorrect(answers[index], teamQuestions[index])} onSelect={(number) => selectNumber(index, number)} />)}
-        </section>
-
-        <div className="mt-3 flex items-center gap-3 rounded-2xl bg-white p-2 shadow-sm">
-          <p className="hidden flex-1 pl-2 text-sm font-bold text-[#70776f] sm:block">{revealed ? resultText(answers, teamQuestions, teamNames) : `พร้อมแล้ว ${answers.filter((a) => a.length === 2).length}/4 กลุ่ม`}</p>
-          <button onClick={revealed ? nextQuestion : reveal} disabled={!revealed && !allReady} className={`flex min-h-14 flex-1 items-center justify-center gap-2 rounded-xl px-6 text-lg font-black sm:max-w-md ${revealed ? 'bg-[#193b2b] text-white' : 'bg-[#ef9940] text-[#352111]'} disabled:cursor-not-allowed disabled:opacity-35`}>
-            {revealed ? <>ข้อต่อไป <ChevronRight/></> : <><Eye/> ครูเฉลยพร้อมกัน</>}
-          </button>
-        </div>
+        {activity === 'factor'
+          ? <FactorPlayArea teams={TEAMS} teamNames={teamNames} question={factorQuestion} index={factorQuestionIndex} answers={factorAnswers} revealed={factorRevealed} onSelect={selectFactorNumber} onReveal={revealFactor} onNext={nextFactorQuestion}/>
+          : <>
+            <QuestionBanner question={question} index={questionIndex} totalQuestions={totalQuestions} revealed={revealed} mode={gameMode} numberMode={numberMode} />
+            <section className="team-board-grid mt-3 grid gap-3" aria-label="คำตอบของทั้งสี่กลุ่ม">
+              {TEAMS.map((team, index) => <TeamCard key={team.name} team={{ ...team, name: teamNames[index] }} question={teamQuestions[index]} showQuestion={gameMode === 'different'} integerMode={numberMode === 'integers'} answer={answers[index]} choices={choices} revealed={revealed} correct={revealed && isCorrect(answers[index], teamQuestions[index])} onSelect={(number) => selectNumber(index, number)} />)}
+            </section>
+            <div className="mt-3 flex items-center gap-3 rounded-2xl bg-white p-2 shadow-sm">
+              <p className="hidden flex-1 pl-2 text-sm font-bold text-[#70776f] sm:block">{revealed ? resultText(answers, teamQuestions, teamNames) : `พร้อมแล้ว ${answers.filter((a) => a.length === 2).length}/4 กลุ่ม`}</p>
+              <button onClick={revealed ? nextQuestion : reveal} disabled={!revealed && !allReady} className={`flex min-h-14 flex-1 items-center justify-center gap-2 rounded-xl px-6 text-lg font-black sm:max-w-md ${revealed ? 'bg-[#193b2b] text-white' : 'bg-[#ef9940] text-[#352111]'} disabled:cursor-not-allowed disabled:opacity-35`}>
+                {revealed ? <>ข้อต่อไป <ChevronRight/></> : <><Eye/> ครูเฉลยพร้อมกัน</>}
+              </button>
+            </div>
+          </>}
       </div>
     </div>
-    {showReset && <ConfirmReset onCancel={() => setShowReset(false)} onConfirm={reset} />}
+    {showReset && <ConfirmReset onCancel={() => setShowReset(false)} onConfirm={activeReset} />}
     {memberTeam !== null && <MemberModal team={{ ...TEAMS[memberTeam], name: teamNames[memberTeam] }} onCancel={() => setMemberTeam(null)} onAdd={addMember} />}
     {showSettings && <SettingsModal names={teamNames} mode={gameMode} numberMode={numberMode} totalQuestions={totalQuestions} currentQuestion={questionIndex + 1} onCancel={() => setShowSettings(false)} onApply={applySettings} />}
   </main>
@@ -302,12 +359,12 @@ function ConfirmReset({ onCancel, onConfirm }) {
   return <div className="fixed inset-0 z-20 grid place-items-center bg-[#17231d]/60 p-4 backdrop-blur-sm"><div className="w-full max-w-sm rounded-[28px] bg-white p-6 text-center shadow-2xl"><RotateCcw className="mx-auto text-[#d76824]" size={38}/><h2 className="mt-3 text-2xl font-black">เริ่มเกมใหม่?</h2><p className="mt-2 text-[#69716c]">คะแนนทั้งหมดจะถูกล้าง</p><div className="mt-5 grid grid-cols-2 gap-3"><button onClick={onCancel} className="min-h-12 rounded-xl bg-[#eeeae1] font-bold">ยกเลิก</button><button onClick={onConfirm} className="min-h-12 rounded-xl bg-[#d85e35] font-bold text-white">เริ่มใหม่</button></div></div></div>
 }
 
-function Results({ scores, members, teamNames, totalQuestions, onReset }) {
+function Results({ scores, members, teamNames, totalQuestions, onReset, activityName = 'คู่คูณชวนคิด' }) {
   const top = Math.max(...scores)
   const winnerIndexes = TEAMS.map((_, index) => index).filter((index) => scores[index] === top)
   return <main className="paper-grid grid min-h-screen place-items-center p-5">
     <div className="w-full max-w-4xl text-center">
-      <Trophy className="mx-auto text-[#d88b20]" size={64}/><p className="mt-3 font-black text-[#a76c1d]">จบครบ {totalQuestions} ข้อ</p><h1 className="text-5xl font-black text-[#193b2b]">เก่งมากทุกทีม!</h1>
+      <Trophy className="mx-auto text-[#d88b20]" size={64}/><p className="mt-3 font-black text-[#a76c1d]">{activityName} · จบครบ {totalQuestions} ข้อ</p><h1 className="text-5xl font-black text-[#193b2b]">เก่งมากทุกทีม!</h1>
       <p className="mt-2 text-lg font-bold text-[#647069]">ผู้ชนะคือ {winnerIndexes.map((index) => `${TEAMS[index].animal} ${teamNames[index]}`).join(' และ ')} · {top} คะแนน</p>
       <div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">{TEAMS.map((team, index) => <div key={team.name} className="rounded-3xl border-2 p-5" style={{ backgroundColor: team.pale, borderColor: team.color }}><div className="text-5xl">{team.animal}</div><h2 className="mt-2 font-black" style={{ color: team.color }}>{teamNames[index]}</h2><p className="text-4xl font-black" style={{ color: team.color }}>{scores[index]}</p><div className="mt-3 space-y-1">{members[index].map((member) => <div key={member.id} className="flex items-center rounded-lg bg-white/70 px-2 py-1 text-xs font-bold"><span className="mr-1">{member.emoji}</span><span className="flex-1 truncate text-left">{member.name}</span><strong style={{ color: team.color }}>{scores[index]}</strong></div>)}</div></div>)}</div>
       <button onClick={onReset} className="mt-7 inline-flex min-h-14 items-center gap-2 rounded-2xl bg-[#193b2b] px-8 text-lg font-black text-white"><RotateCcw/> เล่นอีกครั้ง</button>
