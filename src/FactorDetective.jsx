@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { ChevronRight, Eye, Search } from 'lucide-react'
 
 export const FACTOR_QUESTIONS = [
@@ -91,6 +91,7 @@ export function FactorPlayArea({ teams, teamNames, question, index, answers, rev
 
 function FactorTeamCard({ team, question, answer, revealed, onSelect }) {
   const [activeSlot, setActiveSlot] = useState(0)
+  const arrowMarkerId = useId().replaceAll(':', '')
   const ready = filled(answer)
   const [p, q, r, s] = answer
   const frontOkay = ready && p * q === question.a
@@ -121,11 +122,22 @@ function FactorTeamCard({ team, question, answer, revealed, onSelect }) {
 
     <div className="factor-card-body grid gap-3">
       <div className="min-w-0">
-        <div className="rounded-xl bg-white/75 px-3 py-2 shadow-inner">
+        <div className="relative rounded-xl bg-white/75 px-3 py-2 shadow-inner">
+          <svg className="factor-cross-arrows pointer-events-none absolute z-20 overflow-visible" viewBox="0 0 160 72" aria-hidden="true" style={{ color: team.color }}>
+            <defs>
+              <marker id={`${arrowMarkerId}-head`} markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L9,4.5 L0,9 Z" fill={team.color}/>
+              </marker>
+            </defs>
+            <path d="M28 66 C54 43 106 29 132 6" fill="none" stroke="white" strokeWidth="7" strokeLinecap="round" opacity=".9"/>
+            <path d="M132 66 C106 43 54 29 28 6" fill="none" stroke="white" strokeWidth="7" strokeLinecap="round" opacity=".9"/>
+            <path d="M28 66 C54 43 106 29 132 6" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" markerEnd={`url(#${arrowMarkerId}-head)`}/>
+            <path d="M132 66 C106 43 54 29 28 6" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" markerEnd={`url(#${arrowMarkerId}-head)`}/>
+          </svg>
           <table className="w-full table-fixed text-center text-base font-bold" aria-label={`ตารางคำตอบของ ${team.name}`}>
             <tbody>
               <FactorRow label="หน้า" target={question.a} values={[p, q]} slots={[0, 1]} activeSlot={activeSlot} setActiveSlot={setActiveSlot} color={team.color} disabled={revealed}/>
-              <tr aria-hidden="true"><td/><td className="py-0 text-xs font-black text-[#968cae]" colSpan="5">↘ คูณทแยง ↙</td></tr>
+              <tr className="h-10" aria-hidden="true"><td/><td colSpan="5"><span className="sr-only">คูณทแยง</span></td></tr>
               <FactorRow label="หลัง" target={question.c} values={[r, s]} slots={[2, 3]} activeSlot={activeSlot} setActiveSlot={setActiveSlot} color={team.color} disabled={revealed}/>
               <tr className="border-t border-[#ddd7e7]">
                 <th className="w-14 py-2 text-left text-[#756d88]">กลาง</th>

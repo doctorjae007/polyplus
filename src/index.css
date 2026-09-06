@@ -43,6 +43,13 @@ body {
 .game-shell { display: block; }
 .score-sidebar { position: relative; }
 .team-board-grid { grid-template-columns: 1fr; }
+.factor-cross-arrows {
+  left: 8.75rem;
+  top: 3rem;
+  width: 10rem;
+  height: 4.5rem;
+  filter: drop-shadow(0 2px 1px rgba(48, 38, 95, .18));
+}
 
 @media (min-width: 900px) {
   .game-shell {
