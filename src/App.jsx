@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronRight, Eye, RotateCcw, Sparkles, Trophy } from 'lucide-react'
+import { ChevronRight, Eye, Plus, RotateCcw, Sparkles, Trash2, Trophy, UserPlus } from 'lucide-react'
 
 const TEAMS = [
   { name: 'ทีมฟ้า', animal: '🐬', color: '#2878c8', pale: '#ddecff' },
@@ -16,16 +16,20 @@ const QUESTIONS = [
 ].map((q) => ({ ...q, product: q.m * q.n, sum: q.m + q.n }))
 
 const blankAnswers = () => TEAMS.map(() => [])
+const blankMembers = () => TEAMS.map(() => [])
 const STORAGE_KEY = 'factor-rally-state-v4'
+const MEMBER_EMOJIS = ['😀', '😎', '🐯', '🐰', '🐼', '🦁', '🐸', '🐵', '🦋', '⭐', '🚀', '⚽']
 const isCorrect = (answer, q) => answer.length === 2 && answer[0] * answer[1] === q.product && answer[0] + answer[1] === q.sum
 
 export default function App() {
   const [questionIndex, setQuestionIndex] = useState(0)
   const [answers, setAnswers] = useState(blankAnswers)
   const [scores, setScores] = useState(() => TEAMS.map(() => 0))
+  const [members, setMembers] = useState(blankMembers)
   const [revealed, setRevealed] = useState(false)
   const [finished, setFinished] = useState(false)
   const [showReset, setShowReset] = useState(false)
+  const [memberTeam, setMemberTeam] = useState(null)
   const question = QUESTIONS[questionIndex]
   const choices = useMemo(() => Array.from({ length: 10 }, (_, i) => i + 1), [])
   const allReady = answers.every((answer) => answer.length === 2)
@@ -37,14 +41,15 @@ export default function App() {
       setQuestionIndex(state.questionIndex ?? 0)
       setAnswers(state.answers ?? blankAnswers())
       setScores(state.scores ?? TEAMS.map(() => 0))
+      setMembers(state.members ?? blankMembers())
       setRevealed(Boolean(state.revealed))
       setFinished(Boolean(state.finished))
     } catch { localStorage.removeItem(STORAGE_KEY) }
   }, [])
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ questionIndex, answers, scores, revealed, finished }))
-  }, [questionIndex, answers, scores, revealed, finished])
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ questionIndex, answers, scores, members, revealed, finished }))
+  }, [questionIndex, answers, scores, members, revealed, finished])
 
   const selectNumber = (teamIndex, number) => {
     if (revealed) return
@@ -70,14 +75,23 @@ export default function App() {
 
   const reset = () => {
     setQuestionIndex(0); setAnswers(blankAnswers()); setScores(TEAMS.map(() => 0))
-    setRevealed(false); setFinished(false); setShowReset(false); localStorage.removeItem(STORAGE_KEY)
+    setRevealed(false); setFinished(false); setShowReset(false)
   }
 
-  if (finished) return <Results scores={scores} onReset={reset} />
+  const addMember = (name, emoji) => {
+    setMembers((current) => current.map((list, index) => index === memberTeam ? [...list, { id: crypto.randomUUID(), name, emoji }] : list))
+    setMemberTeam(null)
+  }
+
+  const removeMember = (teamIndex, memberId) => {
+    setMembers((current) => current.map((list, index) => index === teamIndex ? list.filter((member) => member.id !== memberId) : list))
+  }
+
+  if (finished) return <Results scores={scores} members={members} onReset={reset} />
 
   return <main className="paper-grid min-h-screen p-3 lg:p-4">
     <div className="game-shell mx-auto max-w-[1600px] gap-4">
-      <ScoreSidebar scores={scores} answers={answers} question={question} revealed={revealed} />
+      <ScoreSidebar scores={scores} answers={answers} members={members} question={question} revealed={revealed} onAdd={setMemberTeam} onRemove={removeMember} />
 
       <div className="min-w-0">
         <header className="mb-3 flex h-12 items-center justify-between gap-3">
@@ -100,10 +114,11 @@ export default function App() {
       </div>
     </div>
     {showReset && <ConfirmReset onCancel={() => setShowReset(false)} onConfirm={reset} />}
+    {memberTeam !== null && <MemberModal team={TEAMS[memberTeam]} onCancel={() => setMemberTeam(null)} onAdd={addMember} />}
   </main>
 }
 
-function ScoreSidebar({ scores, answers, question, revealed }) {
+function ScoreSidebar({ scores, answers, members, question, revealed, onAdd, onRemove }) {
   return <aside className="score-sidebar rounded-[24px] bg-[#173c2c] p-3 text-white shadow-xl" aria-label="แถบคะแนนด้านซ้าย">
     <div className="flex items-center justify-between px-2 py-2"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#acc8b9]">Score board</p><h2 className="text-lg font-black">พลังของทีม</h2></div><Trophy className="text-[#ffc45d]" size={26}/></div>
     <div className="score-team-grid mt-2 grid grid-cols-2 gap-2">
@@ -112,11 +127,35 @@ function ScoreSidebar({ scores, answers, question, revealed }) {
         return <div key={team.name} className="rounded-2xl p-3 text-[#1d2922]" style={{ backgroundColor: team.pale }}>
           <div className="flex items-center gap-2"><span className="text-3xl" role="img">{team.animal}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-black" style={{ color: team.color }}>{team.name}</p><p className="text-[11px] font-bold text-[#657068]">{revealed ? (correct ? '+1 พลัง!' : 'ไม่ได้แต้ม') : (answers[index].length === 2 ? 'เลือกแล้ว ✓' : 'กำลังคิด')}</p></div><strong className="text-3xl font-black" style={{ color: team.color }}>{scores[index]}</strong></div>
           <div className="mt-2 h-3 overflow-hidden rounded-full bg-white/80"><div className="h-full rounded-full transition-all duration-500" style={{ width: `${scores[index] / 16 * 100}%`, backgroundColor: team.color }}/></div>
+          <div className="mt-2 space-y-1">
+            {members[index].map((member) => <div key={member.id} className="group flex items-center gap-1.5 rounded-lg bg-white/65 px-2 py-1 text-xs font-bold"><span className="text-base">{member.emoji}</span><span className="min-w-0 flex-1 truncate">{member.name}</span><span className="font-black" style={{ color: team.color }}>{scores[index]}</span><button onClick={() => onRemove(index, member.id)} className="ml-1 hidden text-[#9a5b55] group-hover:block" aria-label={`ลบ ${member.name}`}><Trash2 size={12}/></button></div>)}
+          </div>
+          <button onClick={() => onAdd(index)} className="mt-2 flex min-h-8 w-full items-center justify-center gap-1 rounded-lg border border-dashed bg-white/45 text-xs font-black" style={{ borderColor: team.color, color: team.color }}><Plus size={13}/> เพิ่มสมาชิก</button>
         </div>
       })}
     </div>
     <div className="mt-3 rounded-xl bg-white/10 p-2 text-center text-xs font-bold text-[#c9ddd2]">เต็ม 16 พลัง · ถูก 1 ข้อ ได้ 1 พลัง</div>
   </aside>
+}
+
+function MemberModal({ team, onCancel, onAdd }) {
+  const [name, setName] = useState('')
+  const [emoji, setEmoji] = useState(MEMBER_EMOJIS[0])
+  const submit = (event) => {
+    event.preventDefault()
+    const cleanName = name.trim()
+    if (cleanName) onAdd(cleanName, emoji)
+  }
+  return <div className="fixed inset-0 z-30 grid place-items-center bg-[#17231d]/65 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="member-title">
+    <form onSubmit={submit} className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
+      <div className="flex items-center gap-3"><div className="grid size-12 place-items-center rounded-2xl text-3xl" style={{ backgroundColor: team.pale }}>{team.animal}</div><div><p className="text-xs font-black uppercase tracking-wider" style={{ color: team.color }}>{team.name}</p><h2 id="member-title" className="text-2xl font-black">เพิ่มสมาชิก</h2></div></div>
+      <label className="mt-5 block text-sm font-black text-[#4e5a53]">ชื่อสมาชิก</label>
+      <input autoFocus value={name} onChange={(event) => setName(event.target.value)} maxLength={24} placeholder="เช่น น้องมิน" className="mt-2 min-h-12 w-full rounded-xl border-2 border-[#d7d2c8] px-4 text-lg font-bold outline-none focus:border-[#40755b]" />
+      <p className="mt-5 text-sm font-black text-[#4e5a53]">เลือกอิโมจิประจำตัว</p>
+      <div className="mt-2 grid grid-cols-6 gap-2">{MEMBER_EMOJIS.map((item) => <button type="button" key={item} onClick={() => setEmoji(item)} aria-pressed={emoji === item} className={`grid aspect-square place-items-center rounded-xl border-2 text-2xl ${emoji === item ? 'border-[#193b2b] bg-[#e9f2ed] shadow-sm' : 'border-[#e3ded4] bg-[#faf8f3]'}`}>{item}</button>)}</div>
+      <div className="mt-6 grid grid-cols-2 gap-3"><button type="button" onClick={onCancel} className="min-h-12 rounded-xl bg-[#eeeae1] font-bold">ยกเลิก</button><button type="submit" disabled={!name.trim()} className="flex min-h-12 items-center justify-center gap-2 rounded-xl font-black text-white disabled:opacity-35" style={{ backgroundColor: team.color }}><UserPlus size={18}/> เพิ่มสมาชิก</button></div>
+    </form>
+  </div>
 }
 
 function QuestionBanner({ question, index, revealed }) {
@@ -148,8 +187,8 @@ function ConfirmReset({ onCancel, onConfirm }) {
   return <div className="fixed inset-0 z-20 grid place-items-center bg-[#17231d]/60 p-4 backdrop-blur-sm"><div className="w-full max-w-sm rounded-[28px] bg-white p-6 text-center shadow-2xl"><RotateCcw className="mx-auto text-[#d76824]" size={38}/><h2 className="mt-3 text-2xl font-black">เริ่มเกมใหม่?</h2><p className="mt-2 text-[#69716c]">คะแนนทั้งหมดจะถูกล้าง</p><div className="mt-5 grid grid-cols-2 gap-3"><button onClick={onCancel} className="min-h-12 rounded-xl bg-[#eeeae1] font-bold">ยกเลิก</button><button onClick={onConfirm} className="min-h-12 rounded-xl bg-[#d85e35] font-bold text-white">เริ่มใหม่</button></div></div></div>
 }
 
-function Results({ scores, onReset }) {
+function Results({ scores, members, onReset }) {
   const top = Math.max(...scores)
   const winners = TEAMS.filter((_, index) => scores[index] === top)
-  return <main className="paper-grid grid min-h-screen place-items-center p-5"><div className="w-full max-w-4xl text-center"><Trophy className="mx-auto text-[#d88b20]" size={64}/><p className="mt-3 font-black text-[#a76c1d]">จบครบ 16 ข้อ</p><h1 className="text-5xl font-black text-[#193b2b]">เก่งมากทุกทีม!</h1><p className="mt-2 text-lg font-bold text-[#647069]">ผู้ชนะคือ {winners.map((team) => `${team.animal} ${team.name}`).join(' และ ')} · {top} คะแนน</p><div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">{TEAMS.map((team, index) => <div key={team.name} className="rounded-3xl border-2 p-5" style={{ backgroundColor: team.pale, borderColor: team.color }}><div className="text-5xl">{team.animal}</div><h2 className="mt-2 font-black" style={{ color: team.color }}>{team.name}</h2><p className="text-4xl font-black" style={{ color: team.color }}>{scores[index]}</p></div>)}</div><button onClick={onReset} className="mt-7 inline-flex min-h-14 items-center gap-2 rounded-2xl bg-[#193b2b] px-8 text-lg font-black text-white"><RotateCcw/> เล่นอีกครั้ง</button></div></main>
+  return <main className="paper-grid grid min-h-screen place-items-center p-5"><div className="w-full max-w-4xl text-center"><Trophy className="mx-auto text-[#d88b20]" size={64}/><p className="mt-3 font-black text-[#a76c1d]">จบครบ 16 ข้อ</p><h1 className="text-5xl font-black text-[#193b2b]">เก่งมากทุกทีม!</h1><p className="mt-2 text-lg font-bold text-[#647069]">ผู้ชนะคือ {winners.map((team) => `${team.animal} ${team.name}`).join(' และ ')} · {top} คะแนน</p><div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">{TEAMS.map((team, index) => <div key={team.name} className="rounded-3xl border-2 p-5" style={{ backgroundColor: team.pale, borderColor: team.color }}><div className="text-5xl">{team.animal}</div><h2 className="mt-2 font-black" style={{ color: team.color }}>{team.name}</h2><p className="text-4xl font-black" style={{ color: team.color }}>{scores[index]}</p><div className="mt-3 space-y-1">{members[index].map((member) => <div key={member.id} className="flex items-center rounded-lg bg-white/70 px-2 py-1 text-xs font-bold"><span className="mr-1">{member.emoji}</span><span className="flex-1 truncate text-left">{member.name}</span><strong style={{ color: team.color }}>{scores[index]}</strong></div>)}</div></div>)}</div><button onClick={onReset} className="mt-7 inline-flex min-h-14 items-center gap-2 rounded-2xl bg-[#193b2b] px-8 text-lg font-black text-white"><RotateCcw/> เล่นอีกครั้ง</button></div></main>
 }
