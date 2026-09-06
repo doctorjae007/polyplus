@@ -28,6 +28,7 @@ const INTEGER_QUESTIONS = [
 const QUESTION_COUNT_OPTIONS = [5, 10, 15, 20]
 
 const blankAnswers = () => TEAMS.map(() => [])
+const blankFactorAnswers = () => TEAMS.map(() => [null, null, null, null])
 const blankMembers = () => TEAMS.map(() => [])
 const STORAGE_KEY = 'factor-rally-state-v4'
 const MEMBER_EMOJIS = ['😀', '😎', '🐯', '🐰', '🐼', '🦁', '🐸', '🐵', '🦋', '⭐', '🚀', '⚽']
@@ -39,7 +40,7 @@ export default function App() {
   const [answers, setAnswers] = useState(blankAnswers)
   const [scores, setScores] = useState(() => TEAMS.map(() => 0))
   const [factorQuestionIndex, setFactorQuestionIndex] = useState(0)
-  const [factorAnswers, setFactorAnswers] = useState(blankAnswers)
+  const [factorAnswers, setFactorAnswers] = useState(blankFactorAnswers)
   const [factorScores, setFactorScores] = useState(() => TEAMS.map(() => 0))
   const [factorRevealed, setFactorRevealed] = useState(false)
   const [factorFinished, setFactorFinished] = useState(false)
@@ -72,7 +73,10 @@ export default function App() {
       setScores(state.scores ?? TEAMS.map(() => 0))
       setActivity(state.activity === 'factor' ? 'factor' : 'pairs')
       setFactorQuestionIndex((state.factorQuestionIndex ?? 0) < FACTOR_QUESTIONS.length ? (state.factorQuestionIndex ?? 0) : 0)
-      setFactorAnswers(state.factorAnswers ?? blankAnswers())
+      const savedFactorAnswers = Array.isArray(state.factorAnswers) && state.factorAnswers.length === TEAMS.length && state.factorAnswers.every((answer) => Array.isArray(answer) && answer.length === 4)
+        ? state.factorAnswers
+        : blankFactorAnswers()
+      setFactorAnswers(savedFactorAnswers)
       setFactorScores(state.factorScores ?? TEAMS.map(() => 0))
       setFactorRevealed(Boolean(state.factorRevealed))
       setFactorFinished(Boolean(state.factorFinished))
@@ -146,17 +150,16 @@ export default function App() {
     setRevealed(false); setFinished(false); setShowReset(false)
   }
 
-  const selectFactorNumber = (teamIndex, number) => {
+  const selectFactorNumber = (teamIndex, slot, number) => {
     if (factorRevealed) return
     setFactorAnswers((current) => current.map((answer, index) => {
       if (index !== teamIndex) return answer
-      if (answer.includes(number)) return answer.filter((value) => value !== number)
-      return answer.length < 2 ? [...answer, number] : [answer[1], number]
+      return answer.map((value, answerSlot) => answerSlot === slot ? number : value)
     }))
   }
 
   const revealFactor = () => {
-    if (factorRevealed || !factorAnswers.every((answer) => answer.length === 2)) return
+    if (factorRevealed || !factorAnswers.every((answer) => answer.length === 4 && answer.filter(Number.isFinite).length === 4)) return
     const factorQuestion = FACTOR_QUESTIONS[factorQuestionIndex]
     setFactorScores((current) => current.map((score, index) => score + (isFactorCorrect(factorAnswers[index], factorQuestion) ? 1 : 0)))
     setFactorRevealed(true)
@@ -165,12 +168,12 @@ export default function App() {
   const nextFactorQuestion = () => {
     if (factorQuestionIndex === FACTOR_QUESTIONS.length - 1) return setFactorFinished(true)
     setFactorQuestionIndex((value) => value + 1)
-    setFactorAnswers(blankAnswers())
+    setFactorAnswers(blankFactorAnswers())
     setFactorRevealed(false)
   }
 
   const resetFactor = () => {
-    setFactorQuestionIndex(0); setFactorAnswers(blankAnswers()); setFactorScores(TEAMS.map(() => 0))
+    setFactorQuestionIndex(0); setFactorAnswers(blankFactorAnswers()); setFactorScores(TEAMS.map(() => 0))
     setFactorRevealed(false); setFactorFinished(false); setShowReset(false)
   }
 
@@ -213,7 +216,7 @@ export default function App() {
 
   return <main className="paper-grid min-h-screen p-3 lg:p-4">
     <div className="game-shell mx-auto max-w-[1600px] gap-4">
-      <ScoreSidebar scores={activeScores} answers={activeAnswers} members={members} teamNames={teamNames} questions={activeQuestions} totalQuestions={activeTotal} revealed={activeRevealed} onAdd={setMemberTeam} onRemove={removeMember} />
+      <ScoreSidebar scores={activeScores} answers={activeAnswers} members={members} teamNames={teamNames} questions={activeQuestions} totalQuestions={activeTotal} revealed={activeRevealed} isAnswerCorrect={activity === 'factor' ? isFactorCorrect : isCorrect} answerSize={activity === 'factor' ? 4 : 2} onAdd={setMemberTeam} onRemove={removeMember} />
 
       <div className="min-w-0">
         <header className="mb-3 flex min-h-12 flex-wrap items-center justify-between gap-2">
@@ -259,14 +262,15 @@ function SaveStatus({ status }) {
   return <span className={`hidden min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-black xl:flex ${status === 'offline' ? 'bg-[#fff0e7] text-[#a7462b]' : 'bg-[#e7f3eb] text-[#276647]'}`}>{current.icon}{current.text}</span>
 }
 
-function ScoreSidebar({ scores, answers, members, teamNames, questions, totalQuestions, revealed, onAdd, onRemove }) {
+function ScoreSidebar({ scores, answers, members, teamNames, questions, totalQuestions, revealed, isAnswerCorrect = isCorrect, answerSize = 2, onAdd, onRemove }) {
   return <aside className="score-sidebar rounded-[24px] bg-[#173c2c] p-3 text-white shadow-xl" aria-label="แถบคะแนนด้านซ้าย">
     <div className="flex items-center justify-between px-2 py-2"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#acc8b9]">Score board</p><h2 className="text-lg font-black">พลังของทีม</h2></div><Trophy className="text-[#ffc45d]" size={26}/></div>
     <div className="score-team-grid mt-2 grid grid-cols-2 gap-2">
       {TEAMS.map((team, index) => {
-        const correct = revealed && isCorrect(answers[index], questions[index])
+        const correct = revealed && isAnswerCorrect(answers[index], questions[index])
+        const ready = answers[index].filter(Number.isFinite).length === answerSize
         return <div key={team.name} className="rounded-2xl p-3 text-[#1d2922]" style={{ backgroundColor: team.pale }}>
-          <div className="flex items-center gap-2"><span className="text-3xl" role="img">{team.animal}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-black" style={{ color: team.color }}>{teamNames[index]}</p><p className="text-[11px] font-bold text-[#657068]">{revealed ? (correct ? '+1 พลัง!' : 'ไม่ได้แต้ม') : (answers[index].length === 2 ? 'เลือกแล้ว ✓' : 'กำลังคิด')}</p></div><strong className="text-3xl font-black" style={{ color: team.color }}>{scores[index]}</strong></div>
+          <div className="flex items-center gap-2"><span className="text-3xl" role="img">{team.animal}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-black" style={{ color: team.color }}>{teamNames[index]}</p><p className="text-[11px] font-bold text-[#657068]">{revealed ? (correct ? '+1 พลัง!' : 'ไม่ได้แต้ม') : (ready ? 'เลือกแล้ว ✓' : 'กำลังคิด')}</p></div><strong className="text-3xl font-black" style={{ color: team.color }}>{scores[index]}</strong></div>
           <div className="mt-2 h-3 overflow-hidden rounded-full bg-white/80"><div className="h-full rounded-full transition-all duration-500" style={{ width: `${scores[index] / totalQuestions * 100}%`, backgroundColor: team.color }}/></div>
           <div className="mt-2 space-y-1">
             {members[index].map((member) => <div key={member.id} className="group flex items-center gap-1.5 rounded-lg bg-white/65 px-2 py-1 text-xs font-bold"><span className="text-base">{member.emoji}</span><span className="min-w-0 flex-1 truncate">{member.name}</span><span className="font-black" style={{ color: team.color }}>{scores[index]}</span><button onClick={() => onRemove(index, member.id)} className="ml-1 hidden text-[#9a5b55] group-hover:block" aria-label={`ลบ ${member.name}`}><Trash2 size={12}/></button></div>)}
