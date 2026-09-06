@@ -119,46 +119,52 @@ function FactorTeamCard({ team, question, answer, revealed, onSelect }) {
       <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black ${revealed ? (correct ? 'bg-[#17613e] text-white' : 'bg-[#b84f37] text-white') : ready ? 'bg-white text-[#3f5b4c]' : 'bg-black/5 text-[#6f766f]'}`}>{revealed ? (correct ? 'ถูก +1' : 'ตรวจตาราง') : ready ? 'พร้อม' : 'เติม 4 ช่อง'}</span>
     </div>
 
-    <div className="rounded-xl bg-white/75 px-2 py-2 shadow-inner">
-      <table className="w-full table-fixed text-center text-sm font-bold" aria-label={`ตารางคำตอบของ ${team.name}`}>
-        <tbody>
-          <FactorRow label="หน้า" target={question.a} values={[p, q]} slots={[0, 1]} activeSlot={activeSlot} setActiveSlot={setActiveSlot} color={team.color} disabled={revealed}/>
-          <tr aria-hidden="true"><td/><td className="py-0 text-[10px] font-black text-[#968cae]" colSpan="5">↘ คูณทแยง ↙</td></tr>
-          <FactorRow label="หลัง" target={question.c} values={[r, s]} slots={[2, 3]} activeSlot={activeSlot} setActiveSlot={setActiveSlot} color={team.color} disabled={revealed}/>
-          <tr className="border-t border-[#ddd7e7]">
-            <th className="w-12 py-1 text-left text-[#756d88]">กลาง</th>
-            <td className="w-10 font-black">{question.b}</td><td className="w-5">=</td>
-            <td className="py-1 text-left text-xs font-black" colSpan="3" style={{ color: team.color }}>
-              {ready ? <>{p}×{s} + {q}×{r} = {crossOne} {crossTwo < 0 ? '−' : '+'} {Math.abs(crossTwo)} = {crossSum}</> : 'ระบบคำนวณให้อัตโนมัติ'}
-            </td>
-          </tr>
-          <tr className="border-t border-[#ddd7e7]">
-            <th className="py-1 text-left text-[#756d88]">ตอบ</th><td className="py-1 text-left text-base font-black" colSpan="5" style={{ color: team.color }}>{candidateAnswer(answer)}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <p className={`mt-2 min-h-5 text-center text-xs font-black ${revealed && !correct ? 'text-[#a34435]' : 'text-[#52635a]'}`}>{hint}</p>
-    <div className="mt-2 grid grid-cols-7 gap-1.5">
-      {FACTOR_CHOICES.map((number) => <button key={number} onClick={() => chooseNumber(number)} disabled={revealed} className={`team-number min-h-9 rounded-lg border-2 border-white bg-white/85 text-base font-black transition active:translate-y-0.5 ${number < 0 ? 'text-[#b23f35]' : 'text-[#29362f]'} hover:bg-white disabled:cursor-default`}>{number}</button>)}
+    <div className="factor-card-body grid gap-3">
+      <div className="min-w-0">
+        <div className="rounded-xl bg-white/75 px-3 py-2 shadow-inner">
+          <table className="w-full table-fixed text-center text-base font-bold" aria-label={`ตารางคำตอบของ ${team.name}`}>
+            <tbody>
+              <FactorRow label="หน้า" target={question.a} values={[p, q]} slots={[0, 1]} activeSlot={activeSlot} setActiveSlot={setActiveSlot} color={team.color} disabled={revealed}/>
+              <tr aria-hidden="true"><td/><td className="py-0 text-xs font-black text-[#968cae]" colSpan="5">↘ คูณทแยง ↙</td></tr>
+              <FactorRow label="หลัง" target={question.c} values={[r, s]} slots={[2, 3]} activeSlot={activeSlot} setActiveSlot={setActiveSlot} color={team.color} disabled={revealed}/>
+              <tr className="border-t border-[#ddd7e7]">
+                <th className="w-14 py-2 text-left text-[#756d88]">กลาง</th>
+                <td className="w-12 text-xl font-black">{question.b}</td><td className="w-6">=</td>
+                <td className="py-2 text-left text-sm font-black" colSpan="3" style={{ color: team.color }}>
+                  {ready ? <>{p}×{s} + {q}×{r} = {crossOne} {crossTwo < 0 ? '−' : '+'} {Math.abs(crossTwo)} = {crossSum}</> : 'ระบบคำนวณให้อัตโนมัติ'}
+                </td>
+              </tr>
+              <tr className="border-t border-[#ddd7e7]">
+                <th className="py-2 text-left text-[#756d88]">ตอบ</th><td className="py-2 text-left text-xl font-black" colSpan="5" style={{ color: team.color }}>{candidateAnswer(answer)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p className={`mt-2 min-h-6 text-center text-sm font-black ${revealed && !correct ? 'text-[#a34435]' : 'text-[#52635a]'}`}>{hint}</p>
+      </div>
+      <div className="factor-number-panel rounded-xl bg-white/45 p-2">
+        <p className="mb-2 text-center text-sm font-black" style={{ color: team.color }}>เลือกตัวเลข</p>
+        <div className="factor-number-pad grid grid-cols-7 gap-1.5">
+          {FACTOR_CHOICES.map((number) => <button key={number} onClick={() => chooseNumber(number)} disabled={revealed} className={`team-number min-h-11 rounded-lg border-2 border-white bg-white/90 text-lg font-black shadow-sm transition active:translate-y-0.5 ${number < 0 ? 'text-[#b23f35]' : 'text-[#29362f]'} hover:bg-white disabled:cursor-default`}>{number}</button>)}
+        </div>
+      </div>
     </div>
   </article>
 }
 
 function FactorRow({ label, target, values, slots, activeSlot, setActiveSlot, color, disabled }) {
   return <tr>
-    <th className="w-12 py-1 text-left text-[#756d88]">{label}</th>
-    <td className="w-10 font-black">{target}</td><td className="w-5">=</td>
-    <td className="w-12"><Slot value={values[0]} slot={slots[0]} activeSlot={activeSlot} setActiveSlot={setActiveSlot} color={color} disabled={disabled}/></td>
-    <td className="w-6">×</td>
-    <td className="w-12"><Slot value={values[1]} slot={slots[1]} activeSlot={activeSlot} setActiveSlot={setActiveSlot} color={color} disabled={disabled}/></td>
+    <th className="w-14 py-2 text-left text-[#756d88]">{label}</th>
+    <td className="w-12 text-xl font-black">{target}</td><td className="w-6">=</td>
+    <td className="w-16"><Slot value={values[0]} slot={slots[0]} activeSlot={activeSlot} setActiveSlot={setActiveSlot} color={color} disabled={disabled}/></td>
+    <td className="w-8 text-lg">×</td>
+    <td className="w-16"><Slot value={values[1]} slot={slots[1]} activeSlot={activeSlot} setActiveSlot={setActiveSlot} color={color} disabled={disabled}/></td>
   </tr>
 }
 
 function Slot({ value, slot, activeSlot, setActiveSlot, color, disabled }) {
   const active = slot === activeSlot && !disabled
-  return <button type="button" onClick={() => setActiveSlot(slot)} disabled={disabled} aria-label={`ช่องที่ ${slot + 1}`} className={`mx-auto grid min-h-9 min-w-10 place-items-center rounded-lg border-2 bg-white px-1 text-lg font-black shadow-sm ${active ? 'ring-2 ring-offset-1' : ''}`} style={{ color, borderColor: active ? color : '#ded8e8', '--tw-ring-color': color }}>{Number.isFinite(value) ? value : '□'}</button>
+  return <button type="button" onClick={() => setActiveSlot(slot)} disabled={disabled} aria-label={`ช่องที่ ${slot + 1}`} className={`mx-auto grid min-h-12 min-w-14 place-items-center rounded-xl border-2 bg-white px-2 text-2xl font-black shadow-sm ${active ? 'ring-2 ring-offset-1' : ''}`} style={{ color, borderColor: active ? color : '#ded8e8', '--tw-ring-color': color }}>{Number.isFinite(value) ? value : '□'}</button>
 }
 
 export function isFactorCorrect(answer, question) {

@@ -61,6 +61,17 @@ body {
   .team-board-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+@media (min-width: 1280px) {
+  .factor-card-body {
+    grid-template-columns: minmax(0, 1fr) 180px;
+    align-items: stretch;
+  }
+  .factor-number-panel {
+    border-left: 2px dashed rgba(48, 38, 95, .15);
+  }
+  .factor-number-pad { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
 @media (min-width: 1400px) {
   .game-shell { grid-template-columns: 275px minmax(0, 1fr); }
 }
