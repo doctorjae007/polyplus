@@ -89,7 +89,7 @@ function GuidedTeamCard({ team, questionIndex, question, answer, choices, reveal
     <div className="guided-card-body grid gap-3">
       <div className="rounded-xl bg-white/75 p-3 shadow-inner">
         <div className="grid grid-cols-[58px_1fr] gap-x-2 gap-y-2 text-base font-bold">
-          <span className="font-black text-[#58727b]">ขั้นที่ 1</span><span>{polynomial(question)} = (x □)(x □)</span>
+          <span className="font-black text-[#58727b]">ขั้นที่ 1</span><span>{polynomial(question)} = (x + □)(x + □)</span>
           <span className="font-black text-[#58727b]">ขั้นที่ 2</span>
           <div>หาจำนวนเต็มสองจำนวนที่คูณกันได้ <strong className="text-xl text-[#174c63]">{question.product}</strong> และบวกกันได้ <strong className="text-xl text-[#174c63]">{question.sum}</strong></div>
           <span/>

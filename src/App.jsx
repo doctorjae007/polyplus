@@ -295,7 +295,7 @@ export default function App() {
   const activityTitle = activity === 'factor' ? 'นักสืบตัวประกอบ' : activity === 'guided' ? 'คู่คิดพิชิตวงเล็บ' : 'คู่คูณชวนคิด'
   const activityIcon = activity === 'factor' ? '🔎' : activity === 'guided' ? '🧩' : '×'
 
-  return <main className="paper-grid min-h-screen p-3 lg:p-4">
+  return <main className="paper-grid min-h-screen p-3 lg:px-4 lg:py-1">
     <div className="game-shell mx-auto max-w-[1600px] gap-4">
       <ScoreSidebar scores={activeScores} answers={activeAnswers} members={members} teamNames={teamNames} questions={activeQuestions} totalQuestions={activeTotal} revealed={activeRevealed} isAnswerCorrect={activeCorrect} answerSize={activeAnswerSize} onAdd={setMemberTeam} onRemove={removeMember} />
 

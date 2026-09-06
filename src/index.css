@@ -60,9 +60,9 @@ body {
   }
   .score-sidebar {
     position: sticky;
-    top: 16px;
-    min-height: calc(100vh - 32px);
-    max-height: calc(100vh - 32px);
+    top: 4px;
+    min-height: calc(100vh - 8px);
+    max-height: calc(100vh - 8px);
     overflow-y: auto;
   }
   .score-team-grid { grid-template-columns: 1fr; }
@@ -98,7 +98,7 @@ body {
 
 @media (min-width: 900px) and (max-height: 820px) {
   .team-number { min-height: 36px; }
-  .score-sidebar { min-height: calc(100vh - 24px); top: 12px; }
+  .score-sidebar { min-height: calc(100vh - 8px); max-height: calc(100vh - 8px); top: 4px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
