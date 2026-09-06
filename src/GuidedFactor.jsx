@@ -16,6 +16,12 @@ export const MIXED_GUIDED_QUESTIONS = makeQuestions([
 export const GUIDED_QUESTION_COUNT = 10
 const POSITIVE_CHOICES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 const MIXED_CHOICES = [-7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7]
+const mixedChoicesFor = (question) => {
+  const distractors = MIXED_CHOICES.filter((number) => number !== question.m && number !== question.n)
+  const start = Math.abs(question.product + question.sum) % distractors.length
+  const rotated = [...distractors.slice(start), ...distractors.slice(0, start)]
+  return [...new Set([question.m, question.n, ...rotated.slice(0, 8)])].sort((a, b) => a - b)
+}
 const readyAnswer = (answer) => answer.length === 2 && answer.filter(Number.isFinite).length === 2
 const signed = (value) => value < 0 ? `− ${Math.abs(value)}` : `+ ${value}`
 const polynomial = (question) => `x² ${signed(question.sum)}x ${signed(question.product)}`
@@ -26,7 +32,6 @@ export const isGuidedCorrect = (answer, question) => readyAnswer(answer)
   && answer[0] + answer[1] === question.sum
 
 export function GuidedPlayArea({ teams, teamNames, questions, index, answers, revealed, numberMode, onSelect, onReveal, onNext }) {
-  const choices = numberMode === 'mixed' ? MIXED_CHOICES : POSITIVE_CHOICES
   const allReady = answers.every(readyAnswer)
   const winners = teams.map((_, teamIndex) => teamIndex)
     .filter((teamIndex) => isGuidedCorrect(answers[teamIndex], questions[teamIndex]))
@@ -40,7 +45,7 @@ export function GuidedPlayArea({ teams, teamNames, questions, index, answers, re
         questionIndex={index}
         question={questions[teamIndex]}
         answer={answers[teamIndex]}
-        choices={choices}
+        choices={numberMode === 'mixed' ? mixedChoicesFor(questions[teamIndex]) : POSITIVE_CHOICES}
         revealed={revealed}
         onSelect={(slot, number) => onSelect(teamIndex, slot, number)}
       />)}
@@ -96,7 +101,7 @@ function GuidedTeamCard({ team, questionIndex, question, answer, choices, reveal
         </div>
         <p className={`mt-2 text-center text-sm font-black ${revealed && !correct ? 'text-[#a34435]' : 'text-[#52635a]'}`}>{hint}</p>
       </div>
-      <div className="guided-number-panel rounded-xl bg-white/45 p-2"><p className="mb-2 text-center text-sm font-black" style={{ color: team.color }}>เลือกตัวเลข</p><div className="guided-number-pad grid grid-cols-5 gap-1.5">{choices.map((number) => <button key={number} onClick={() => chooseNumber(number)} disabled={revealed} className={`team-number min-h-11 rounded-lg border-2 border-white bg-white/90 text-lg font-black shadow-sm ${number < 0 ? 'text-[#b23f35]' : 'text-[#29362f]'}`}>{number}</button>)}</div></div>
+      <div className="guided-number-panel self-start rounded-xl bg-white/45 p-2"><p className="mb-1.5 text-center text-sm font-black" style={{ color: team.color }}>เลือกตัวเลข</p><div className="guided-number-pad grid grid-cols-3 gap-1">{choices.map((number) => <button key={number} onClick={() => chooseNumber(number)} disabled={revealed} className={`team-number min-h-10 rounded-lg border-2 border-white bg-white/90 text-base font-black shadow-sm ${number < 0 ? 'text-[#b23f35]' : 'text-[#29362f]'}`}>{number}</button>)}</div></div>
     </div>
   </article>
 }
