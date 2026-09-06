@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, ChevronRight, Eye, LockKeyhole, Pencil, RotateCcw, Sparkles, Trophy, UsersRound, X } from 'lucide-react'
+import { ChevronRight, Eye, LockKeyhole, Pencil, RotateCcw, Sparkles, Trophy, UsersRound, X } from 'lucide-react'
 
 const TEAMS = [
-  { name: 'ทีมฟ้า', color: '#2878c8', pale: '#e8f2ff' },
-  { name: 'ทีมส้ม', color: '#e76f2e', pale: '#fff0e7' },
-  { name: 'ทีมเขียว', color: '#249263', pale: '#e8f7ef' },
-  { name: 'ทีมม่วง', color: '#8459c4', pale: '#f1ebfb' },
+  { name: 'ทีมฟ้า', animal: '🐬', color: '#2878c8', pale: '#ddecff' },
+  { name: 'ทีมส้ม', animal: '🦊', color: '#e76f2e', pale: '#ffe5d6' },
+  { name: 'ทีมเขียว', animal: '🐢', color: '#249263', pale: '#d9f3e5' },
+  { name: 'ทีมม่วง', animal: '🦄', color: '#8459c4', pale: '#eadffc' },
 ]
 
 const QUESTIONS = [
@@ -111,26 +111,17 @@ function App() {
           <button onClick={() => setShowReset(true)} className="flex min-h-11 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white/70 px-4 text-sm font-bold text-[#5c635e] hover:bg-white"><RotateCcw size={17} /> <span className="hidden sm:inline">เริ่มใหม่</span></button>
         </header>
 
-        <section className="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-4" aria-label="คะแนนแต่ละกลุ่ม">
-          {TEAMS.map((team, index) => {
-            const correct = revealed && isCorrect(answers[index], question)
-            return <div key={team.name} className={`relative overflow-hidden rounded-2xl border bg-white p-3 transition-all ${correct ? 'border-transparent shadow-md ring-2' : 'border-[#ded8cb]'}`} style={{ '--tw-ring-color': correct ? team.color : 'transparent' }}>
-              <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: team.color }} />
-              <div className="flex items-center justify-between gap-2"><div className="flex min-w-0 items-center gap-2"><span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: team.color }} /><span className="truncate font-extrabold">{team.name}</span></div><span className="text-2xl font-black" style={{ color: team.color }}>{scores[index]}</span></div>
-              <div className="mt-1 flex justify-between text-xs font-semibold text-[#7b807c]"><span>{revealed ? (correct ? 'ได้ 1 แต้ม!' : 'ยังไม่ได้แต้ม') : (locked[index] ? 'ส่งคำตอบแล้ว' : 'รอตอบ')}</span><span>คะแนน</span></div>
-            </div>
-          })}
-        </section>
-
-        <div className="grid gap-4 lg:grid-cols-[.9fr_1.35fr]">
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="grid min-w-0 gap-4 xl:grid-cols-[.85fr_1.15fr]">
           <QuestionPanel question={question} questionIndex={questionIndex} round={round} revealed={revealed} />
-          <section className="rounded-[28px] border border-[#ded8cb] bg-[#fffdf8] p-4 shadow-sm sm:p-6">
+          <section className="rounded-[28px] border-2 p-4 shadow-sm transition-colors sm:p-6" style={{ borderColor: revealed ? '#ded8cb' : TEAMS[activeTeam].color, backgroundColor: revealed ? '#fffdf8' : TEAMS[activeTeam].pale }}>
             <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="เลือกกลุ่มที่จะตอบ">
               {TEAMS.map((team, index) => {
                 const active = index === activeTeam && !revealed
                 const correct = revealed && isCorrect(answers[index], question)
-                return <button key={team.name} onClick={() => editTeam(index)} disabled={revealed} className={`min-h-20 rounded-2xl border-2 px-3 py-2 text-left transition ${active ? 'shadow-md' : 'bg-white'} disabled:cursor-default`} style={{ borderColor: active || revealed ? team.color : '#ded8cb', backgroundColor: active ? team.pale : undefined }}>
-                  <div className="flex items-center justify-between gap-1"><span className="font-black" style={{ color: team.color }}>{team.name}</span>{locked[index] && !revealed ? <LockKeyhole size={16} style={{ color: team.color }} /> : null}</div>
+                return <button key={team.name} onClick={() => editTeam(index)} disabled={revealed} className={`relative min-h-20 overflow-hidden rounded-2xl border-2 px-3 py-2 text-left transition ${active ? 'scale-[1.02] shadow-md' : 'opacity-90'} disabled:cursor-default disabled:opacity-100`} style={{ borderColor: team.color, backgroundColor: team.pale }}>
+                  <span className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: team.color }} />
+                  <div className="flex items-center justify-between gap-1"><span className="font-black" style={{ color: team.color }}><span className="mr-1" role="img">{team.animal}</span>{team.name}</span>{locked[index] && !revealed ? <LockKeyhole size={16} style={{ color: team.color }} /> : null}</div>
                   <div className="mt-1 text-sm font-bold text-[#69716c]">{revealed ? <span className={correct ? 'text-[#187044]' : 'text-[#b6492f]'}>{answers[index].join(' × ')} {correct ? '✓' : '✕'}</span> : locked[index] ? 'พร้อมเฉลย ✓' : active ? 'กำลังเลือก…' : 'แตะเพื่อเลือก'}</div>
                 </button>
               })}
@@ -154,11 +145,39 @@ function App() {
             </button>
             {!revealed && <p className="mt-2 text-center text-xs font-bold text-[#85877f]">{locked.filter(Boolean).length}/4 กลุ่มพร้อมแล้ว · กลุ่มที่ตอบถูกได้ 1 คะแนน</p>}
           </section>
+          </div>
+          <ScoreSidebar scores={scores} answers={answers} locked={locked} question={question} revealed={revealed} />
         </div>
       </div>
       {showReset && <ConfirmReset onCancel={() => setShowReset(false)} onConfirm={resetGame} />}
     </main>
   )
+}
+
+function ScoreSidebar({ scores, answers, locked, question, revealed }) {
+  return <aside className="overflow-hidden rounded-[28px] border border-[#d8d2c5] bg-[#173c2c] p-3 text-white shadow-xl lg:sticky lg:top-6" aria-label="แถบคะแนน">
+    <div className="flex items-center justify-between px-2 py-2">
+      <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#acc8b9]">Score board</p><h2 className="text-xl font-black">พลังของแต่ละทีม</h2></div>
+      <Trophy className="text-[#ffc45d]" size={28} />
+    </div>
+    <div className="mt-2 grid grid-cols-2 gap-2 lg:grid-cols-1">
+      {TEAMS.map((team, index) => {
+        const correct = revealed && isCorrect(answers[index], question)
+        const status = revealed ? (correct ? '+1 พลัง!' : 'ข้อนี้ยังไม่ได้') : (locked[index] ? 'พร้อมเฉลย' : 'รอคำตอบ')
+        return <div key={team.name} className="rounded-2xl p-3 text-[#1d2922] shadow-sm" style={{ backgroundColor: team.pale }}>
+          <div className="flex items-center gap-2">
+            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/75 text-3xl" role="img" aria-label={`สัตว์ประจำ${team.name}`}>{team.animal}</span>
+            <div className="min-w-0 flex-1"><p className="truncate text-sm font-black" style={{ color: team.color }}>{team.name}</p><p className="text-xs font-bold text-[#637068]">{status}</p></div>
+            <div className="text-right"><strong className="text-3xl font-black leading-none" style={{ color: team.color }}>{scores[index]}</strong><span className="block text-[10px] font-bold text-[#707970]">/ 16</span></div>
+          </div>
+          <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/80 ring-1 ring-black/5" aria-label={`พลัง ${scores[index]} จาก 16`}>
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${(scores[index] / 16) * 100}%`, backgroundColor: team.color }} />
+          </div>
+        </div>
+      })}
+    </div>
+    <div className="mt-3 rounded-2xl bg-white/10 px-3 py-2 text-center text-xs font-bold text-[#c9ddd2]">ตอบถูก 1 ข้อ = เพิ่มพลัง 1 ช่อง</div>
+  </aside>
 }
 
 function QuestionPanel({ question, questionIndex, round, revealed }) {
