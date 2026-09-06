@@ -40,6 +40,34 @@ body {
 @keyframes pop { 0% { transform: scale(.92); opacity: .2; } 65% { transform: scale(1.03); } 100% { transform: scale(1); opacity: 1; } }
 .pop { animation: pop .3s ease-out; }
 
+.game-shell { display: block; }
+.score-sidebar { position: relative; }
+.team-board-grid { grid-template-columns: 1fr; }
+
+@media (min-width: 900px) {
+  .game-shell {
+    display: grid;
+    grid-template-columns: 245px minmax(0, 1fr);
+    align-items: start;
+  }
+  .score-sidebar {
+    position: sticky;
+    top: 16px;
+    min-height: calc(100vh - 32px);
+  }
+  .score-team-grid { grid-template-columns: 1fr; }
+  .team-board-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 1400px) {
+  .game-shell { grid-template-columns: 275px minmax(0, 1fr); }
+}
+
+@media (min-width: 900px) and (max-height: 820px) {
+  .team-number { min-height: 36px; }
+  .score-sidebar { min-height: calc(100vh - 24px); top: 12px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
