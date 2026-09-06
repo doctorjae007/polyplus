@@ -4,4 +4,5 @@ dist
 *.local
 *.log
 .site-stage/
+.site-stage-v2/
 site-deploy.tgz

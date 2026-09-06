@@ -1,0 +1,5 @@
+export const gameStateSchema = `CREATE TABLE IF NOT EXISTS game_state (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  data TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`

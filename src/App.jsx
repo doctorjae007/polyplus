@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronRight, Eye, Plus, RotateCcw, Settings, Sparkles, Trash2, Trophy, UserPlus } from 'lucide-react'
+import { Check, ChevronRight, Cloud, CloudOff, Eye, LoaderCircle, Plus, RotateCcw, Settings, Sparkles, Trash2, Trophy, UserPlus } from 'lucide-react'
 
 const TEAMS = [
   { name: 'ทีมฟ้า', animal: '🐬', color: '#2878c8', pale: '#ddecff' },
@@ -46,6 +46,8 @@ export default function App() {
   const [showReset, setShowReset] = useState(false)
   const [memberTeam, setMemberTeam] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
+  const [saveStatus, setSaveStatus] = useState('loading')
   const questionBank = numberMode === 'integers' ? INTEGER_QUESTIONS : QUESTIONS
   const teamQuestions = TEAMS.map((_, index) => gameMode === 'same' ? questionBank[questionIndex] : questionBank[(questionIndex + index * 4) % questionBank.length])
   const question = teamQuestions[0]
@@ -53,27 +55,56 @@ export default function App() {
   const allReady = answers.every((answer) => answer.length === 2)
 
   useEffect(() => {
-    try {
-      const state = JSON.parse(localStorage.getItem(STORAGE_KEY))
-      if (!state) return
+    let cancelled = false
+    const applyState = (state) => {
+      if (!state || cancelled) return
       const savedTotal = QUESTION_COUNT_OPTIONS.includes(state.totalQuestions) ? state.totalQuestions : 10
-      const oldGameFinished = Boolean(state.finished) || (state.questionIndex ?? 0) >= savedTotal
-      setQuestionIndex(oldGameFinished ? 0 : (state.questionIndex ?? 0))
-      setAnswers(oldGameFinished ? blankAnswers() : (state.answers ?? blankAnswers()))
-      setScores(oldGameFinished ? TEAMS.map(() => 0) : (state.scores ?? TEAMS.map(() => 0)))
+      const invalidIndex = (state.questionIndex ?? 0) >= savedTotal
+      setQuestionIndex(invalidIndex ? 0 : (state.questionIndex ?? 0))
+      setAnswers(invalidIndex ? blankAnswers() : (state.answers ?? blankAnswers()))
+      setScores(state.scores ?? TEAMS.map(() => 0))
       setMembers(state.members ?? blankMembers())
       setTeamNames(state.teamNames ?? TEAMS.map((team) => team.name))
       setGameMode(state.gameMode ?? 'same')
       setNumberMode(state.numberMode ?? 'positive')
       setTotalQuestions(savedTotal)
-      setRevealed(oldGameFinished ? false : Boolean(state.revealed))
-      setFinished(false)
-    } catch { localStorage.removeItem(STORAGE_KEY) }
+      setRevealed(invalidIndex ? false : Boolean(state.revealed))
+      setFinished(invalidIndex ? false : Boolean(state.finished))
+    }
+    const loadRoom = async () => {
+      let cached = null
+      try { cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) } catch { localStorage.removeItem(STORAGE_KEY) }
+      try {
+        const response = await fetch('/api/game-state', { headers: { Accept: 'application/json' } })
+        if (!response.ok) throw new Error('database unavailable')
+        const payload = await response.json()
+        applyState(payload.state ?? cached)
+        if (!cancelled) setSaveStatus('saved')
+      } catch {
+        applyState(cached)
+        if (!cancelled) setSaveStatus('offline')
+      } finally {
+        if (!cancelled) setHydrated(true)
+      }
+    }
+    loadRoom()
+    return () => { cancelled = true }
   }, [])
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ questionIndex, answers, scores, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished }))
-  }, [questionIndex, answers, scores, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished])
+    if (!hydrated) return
+    const state = { questionIndex, answers, scores, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    setSaveStatus('saving')
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch('/api/game-state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state) })
+        if (!response.ok) throw new Error('save failed')
+        setSaveStatus('saved')
+      } catch { setSaveStatus('offline') }
+    }, 450)
+    return () => clearTimeout(timer)
+  }, [hydrated, questionIndex, answers, scores, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished])
 
   const selectNumber = (teamIndex, number) => {
     if (revealed) return
@@ -127,6 +158,7 @@ export default function App() {
     setShowSettings(false)
   }
 
+  if (!hydrated) return <main className="paper-grid grid min-h-screen place-items-center"><div className="text-center text-[#193b2b]"><LoaderCircle className="mx-auto animate-spin" size={44}/><p className="mt-3 font-black">กำลังโหลดห้องเรียน…</p></div></main>
   if (finished) return <Results scores={scores} members={members} teamNames={teamNames} totalQuestions={totalQuestions} onReset={reset} />
 
   return <main className="paper-grid min-h-screen p-3 lg:p-4">
@@ -136,7 +168,7 @@ export default function App() {
       <div className="min-w-0">
         <header className="mb-3 flex h-12 items-center justify-between gap-3">
           <div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-xl bg-[#193b2b] text-xl font-black text-white">×</div><div><h1 className="text-xl font-black text-[#193b2b]">คู่คูณชวนคิด</h1><p className="text-xs font-bold text-[#6d756f]">ทุกกลุ่มเลือกพร้อมกัน · ครูเฉลยครั้งเดียว</p></div></div>
-          <div className="flex gap-2"><button onClick={() => setShowSettings(true)} className="flex min-h-10 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white px-3 text-sm font-bold text-[#5c635e]"><Settings size={16}/> ตั้งค่าเกม</button><button onClick={() => setShowReset(true)} className="flex min-h-10 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white px-3 text-sm font-bold text-[#5c635e]"><RotateCcw size={16}/> เริ่มใหม่</button></div>
+          <div className="flex gap-2"><SaveStatus status={saveStatus}/><button onClick={() => setShowSettings(true)} className="flex min-h-10 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white px-3 text-sm font-bold text-[#5c635e]"><Settings size={16}/> ตั้งค่าเกม</button><button onClick={() => setShowReset(true)} className="flex min-h-10 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white px-3 text-sm font-bold text-[#5c635e]"><RotateCcw size={16}/> เริ่มใหม่</button></div>
         </header>
 
         <QuestionBanner question={question} index={questionIndex} totalQuestions={totalQuestions} revealed={revealed} mode={gameMode} numberMode={numberMode} />
@@ -157,6 +189,17 @@ export default function App() {
     {memberTeam !== null && <MemberModal team={{ ...TEAMS[memberTeam], name: teamNames[memberTeam] }} onCancel={() => setMemberTeam(null)} onAdd={addMember} />}
     {showSettings && <SettingsModal names={teamNames} mode={gameMode} numberMode={numberMode} totalQuestions={totalQuestions} currentQuestion={questionIndex + 1} onCancel={() => setShowSettings(false)} onApply={applySettings} />}
   </main>
+}
+
+function SaveStatus({ status }) {
+  const states = {
+    loading: { icon: <LoaderCircle className="animate-spin" size={14}/>, text: 'กำลังเชื่อมต่อ' },
+    saving: { icon: <Cloud size={14}/>, text: 'กำลังบันทึก' },
+    saved: { icon: <Check size={14}/>, text: 'บันทึกแล้ว' },
+    offline: { icon: <CloudOff size={14}/>, text: 'ออฟไลน์' },
+  }
+  const current = states[status] ?? states.loading
+  return <span className={`hidden min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-black xl:flex ${status === 'offline' ? 'bg-[#fff0e7] text-[#a7462b]' : 'bg-[#e7f3eb] text-[#276647]'}`}>{current.icon}{current.text}</span>
 }
 
 function ScoreSidebar({ scores, answers, members, teamNames, questions, totalQuestions, revealed, onAdd, onRemove }) {
