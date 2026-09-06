@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronRight, Cloud, CloudOff, Eye, LoaderCircle, Plus, RotateCcw, Settings, Sparkles, Trash2, Trophy, UserPlus } from 'lucide-react'
-import { FACTOR_QUESTIONS, FactorPlayArea, isFactorCorrect } from './FactorDetective'
+import { FACTOR_QUESTIONS, MIXED_FACTOR_QUESTIONS, POSITIVE_FACTOR_QUESTIONS, FactorPlayArea, isFactorCorrect } from './FactorDetective'
 
 const TEAMS = [
   { name: 'ทีมฟ้า', animal: '🐬', color: '#2878c8', pale: '#ddecff' },
@@ -42,6 +42,8 @@ export default function App() {
   const [factorQuestionIndex, setFactorQuestionIndex] = useState(0)
   const [factorAnswers, setFactorAnswers] = useState(blankFactorAnswers)
   const [factorScores, setFactorScores] = useState(() => TEAMS.map(() => 0))
+  const [factorGameMode, setFactorGameMode] = useState('same')
+  const [factorNumberMode, setFactorNumberMode] = useState('mixed')
   const [factorRevealed, setFactorRevealed] = useState(false)
   const [factorFinished, setFactorFinished] = useState(false)
   const [members, setMembers] = useState(blankMembers)
@@ -58,6 +60,8 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState('loading')
   const questionBank = numberMode === 'integers' ? INTEGER_QUESTIONS : QUESTIONS
   const teamQuestions = TEAMS.map((_, index) => gameMode === 'same' ? questionBank[questionIndex] : questionBank[(questionIndex + index * 4) % questionBank.length])
+  const factorQuestionBank = factorNumberMode === 'mixed' ? MIXED_FACTOR_QUESTIONS : POSITIVE_FACTOR_QUESTIONS
+  const factorTeamQuestions = TEAMS.map((_, index) => factorGameMode === 'same' ? factorQuestionBank[factorQuestionIndex] : factorQuestionBank[(factorQuestionIndex + index * 3) % factorQuestionBank.length])
   const question = teamQuestions[0]
   const choices = useMemo(() => numberMode === 'integers' ? Array.from({ length: 13 }, (_, i) => i - 6) : Array.from({ length: 10 }, (_, i) => i + 1), [numberMode])
   const allReady = answers.every((answer) => answer.length === 2)
@@ -78,6 +82,8 @@ export default function App() {
         : blankFactorAnswers()
       setFactorAnswers(savedFactorAnswers)
       setFactorScores(state.factorScores ?? TEAMS.map(() => 0))
+      setFactorGameMode(state.factorGameMode === 'different' ? 'different' : 'same')
+      setFactorNumberMode(state.factorNumberMode === 'positive' ? 'positive' : 'mixed')
       setFactorRevealed(Boolean(state.factorRevealed))
       setFactorFinished(Boolean(state.factorFinished))
       setMembers(state.members ?? blankMembers())
@@ -110,7 +116,7 @@ export default function App() {
 
   useEffect(() => {
     if (!hydrated) return
-    const state = { activity, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorRevealed, factorFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished }
+    const state = { activity, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorGameMode, factorNumberMode, factorRevealed, factorFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
     setSaveStatus('saving')
     const timer = setTimeout(async () => {
@@ -121,7 +127,7 @@ export default function App() {
       } catch { setSaveStatus('offline') }
     }, 450)
     return () => clearTimeout(timer)
-  }, [hydrated, activity, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorRevealed, factorFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished])
+  }, [hydrated, activity, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorGameMode, factorNumberMode, factorRevealed, factorFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished])
 
   const selectNumber = (teamIndex, number) => {
     if (revealed) return
@@ -160,8 +166,7 @@ export default function App() {
 
   const revealFactor = () => {
     if (factorRevealed || !factorAnswers.every((answer) => answer.length === 4 && answer.filter(Number.isFinite).length === 4)) return
-    const factorQuestion = FACTOR_QUESTIONS[factorQuestionIndex]
-    setFactorScores((current) => current.map((score, index) => score + (isFactorCorrect(factorAnswers[index], factorQuestion) ? 1 : 0)))
+    setFactorScores((current) => current.map((score, index) => score + (isFactorCorrect(factorAnswers[index], factorTeamQuestions[index]) ? 1 : 0)))
     setFactorRevealed(true)
   }
 
@@ -175,6 +180,21 @@ export default function App() {
   const resetFactor = () => {
     setFactorQuestionIndex(0); setFactorAnswers(blankFactorAnswers()); setFactorScores(TEAMS.map(() => 0))
     setFactorRevealed(false); setFactorFinished(false); setShowReset(false)
+  }
+
+  const applyFactorSettings = (names, mode, nextNumberMode) => {
+    setTeamNames(names.map((name, index) => name.trim() || TEAMS[index].name))
+    if (mode !== factorGameMode || nextNumberMode !== factorNumberMode) {
+      setFactorGameMode(mode)
+      setFactorNumberMode(nextNumberMode)
+      setFactorAnswers(blankFactorAnswers())
+      setFactorRevealed(false)
+      if (factorRevealed) {
+        if (factorQuestionIndex >= FACTOR_QUESTIONS.length - 1) setFactorFinished(true)
+        else setFactorQuestionIndex((value) => value + 1)
+      }
+    }
+    setShowSettings(false)
   }
 
   const addMember = (name, emoji) => {
@@ -206,10 +226,9 @@ export default function App() {
   if (activity === 'pairs' && finished) return <Results scores={scores} members={members} teamNames={teamNames} totalQuestions={totalQuestions} onReset={reset} />
   if (activity === 'factor' && factorFinished) return <Results scores={factorScores} members={members} teamNames={teamNames} totalQuestions={FACTOR_QUESTIONS.length} onReset={resetFactor} activityName="นักสืบตัวประกอบ" />
 
-  const factorQuestion = FACTOR_QUESTIONS[factorQuestionIndex]
   const activeScores = activity === 'factor' ? factorScores : scores
   const activeAnswers = activity === 'factor' ? factorAnswers : answers
-  const activeQuestions = activity === 'factor' ? TEAMS.map(() => factorQuestion) : teamQuestions
+  const activeQuestions = activity === 'factor' ? factorTeamQuestions : teamQuestions
   const activeTotal = activity === 'factor' ? FACTOR_QUESTIONS.length : totalQuestions
   const activeRevealed = activity === 'factor' ? factorRevealed : revealed
   const activeReset = activity === 'factor' ? resetFactor : reset
@@ -224,13 +243,13 @@ export default function App() {
           <div className="flex flex-wrap justify-end gap-2">
             <SaveStatus status={saveStatus}/>
             <button onClick={() => setActivity(activity === 'factor' ? 'pairs' : 'factor')} className="flex min-h-10 items-center gap-2 rounded-xl bg-[#ffd05a] px-3 text-sm font-black text-[#473510] shadow-sm"><Sparkles size={16}/> {activity === 'factor' ? 'ไปเกมที่ 1' : 'ไปเกมที่ 2'}</button>
-            <button onClick={() => setShowSettings(true)} className="flex min-h-10 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white px-3 text-sm font-bold text-[#5c635e]"><Settings size={16}/> ตั้งค่ากลุ่ม</button>
+            <button onClick={() => setShowSettings(true)} className="flex min-h-10 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white px-3 text-sm font-bold text-[#5c635e]"><Settings size={16}/> ตั้งค่าเกม</button>
             <button onClick={() => setShowReset(true)} className="flex min-h-10 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white px-3 text-sm font-bold text-[#5c635e]"><RotateCcw size={16}/> เริ่มใหม่</button>
           </div>
         </header>
 
         {activity === 'factor'
-          ? <FactorPlayArea teams={TEAMS} teamNames={teamNames} question={factorQuestion} index={factorQuestionIndex} answers={factorAnswers} revealed={factorRevealed} onSelect={selectFactorNumber} onReveal={revealFactor} onNext={nextFactorQuestion}/>
+          ? <FactorPlayArea teams={TEAMS} teamNames={teamNames} questions={factorTeamQuestions} index={factorQuestionIndex} answers={factorAnswers} revealed={factorRevealed} numberMode={factorNumberMode} onSelect={selectFactorNumber} onReveal={revealFactor} onNext={nextFactorQuestion}/>
           : <>
             <QuestionBanner question={question} index={questionIndex} totalQuestions={totalQuestions} revealed={revealed} mode={gameMode} numberMode={numberMode} />
             <section className="team-board-grid mt-3 grid gap-3" aria-label="คำตอบของทั้งสี่กลุ่ม">
@@ -247,7 +266,9 @@ export default function App() {
     </div>
     {showReset && <ConfirmReset onCancel={() => setShowReset(false)} onConfirm={activeReset} />}
     {memberTeam !== null && <MemberModal team={{ ...TEAMS[memberTeam], name: teamNames[memberTeam] }} onCancel={() => setMemberTeam(null)} onAdd={addMember} />}
-    {showSettings && <SettingsModal names={teamNames} mode={gameMode} numberMode={numberMode} totalQuestions={totalQuestions} currentQuestion={questionIndex + 1} onCancel={() => setShowSettings(false)} onApply={applySettings} />}
+    {showSettings && (activity === 'factor'
+      ? <FactorSettingsModal names={teamNames} mode={factorGameMode} numberMode={factorNumberMode} currentQuestion={factorQuestionIndex + 1} onCancel={() => setShowSettings(false)} onApply={applyFactorSettings}/>
+      : <SettingsModal names={teamNames} mode={gameMode} numberMode={numberMode} totalQuestions={totalQuestions} currentQuestion={questionIndex + 1} onCancel={() => setShowSettings(false)} onApply={applySettings} />)}
   </main>
 }
 
@@ -281,6 +302,34 @@ function ScoreSidebar({ scores, answers, members, teamNames, questions, totalQue
     </div>
     <div className="mt-3 rounded-xl bg-white/10 p-2 text-center text-xs font-bold text-[#c9ddd2]">เต็ม {totalQuestions} พลัง · ถูก 1 ข้อ ได้ 1 พลัง</div>
   </aside>
+}
+
+function FactorSettingsModal({ names, mode, numberMode, currentQuestion, onCancel, onApply }) {
+  const [draftNames, setDraftNames] = useState(names)
+  const [draftMode, setDraftMode] = useState(mode)
+  const [draftNumberMode, setDraftNumberMode] = useState(numberMode)
+  return <div className="fixed inset-0 z-30 grid place-items-center overflow-y-auto bg-[#17231d]/65 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="factor-settings-title">
+    <form onSubmit={(event) => { event.preventDefault(); onApply(draftNames, draftMode, draftNumberMode) }} className="w-full max-w-2xl rounded-[28px] bg-white p-6 shadow-2xl">
+      <div className="flex items-center gap-3"><div className="grid size-12 place-items-center rounded-2xl bg-[#eee9ff] text-2xl">🔎</div><div><p className="text-xs font-black uppercase tracking-wider text-[#8276b4]">Factor settings</p><h2 id="factor-settings-title" className="text-2xl font-black">ตั้งค่านักสืบตัวประกอบ</h2></div></div>
+      <p className="mt-5 text-sm font-black text-[#4e5a53]">ชื่อกลุ่ม</p>
+      <div className="mt-2 grid grid-cols-2 gap-3">{TEAMS.map((team, index) => <label key={team.name} className="flex items-center gap-2 rounded-xl border-2 p-2" style={{ borderColor: team.color, backgroundColor: team.pale }}><span className="text-2xl">{team.animal}</span><input value={draftNames[index]} onChange={(event) => setDraftNames((current) => current.map((name, i) => i === index ? event.target.value : name))} maxLength={20} className="min-w-0 flex-1 rounded-lg bg-white/85 px-3 py-2 font-black outline-none" aria-label={`ชื่อกลุ่มที่ ${index + 1}`}/></label>)}</div>
+
+      <p className="mt-5 text-sm font-black text-[#4e5a53]">รูปแบบโจทย์</p>
+      <div className="mt-2 grid gap-3 sm:grid-cols-2">
+        <button type="button" onClick={() => setDraftMode('same')} className={`rounded-2xl border-2 p-4 text-left ${draftMode === 'same' ? 'border-[#2878c8] bg-[#e8f2ff]' : 'border-[#ded8cb]'}`}><strong className="text-lg">👥 โจทย์เหมือนกัน</strong><p className="mt-1 text-sm font-bold text-[#68736d]">ทั้ง 4 กลุ่มแก้สมการเดียวกัน</p></button>
+        <button type="button" onClick={() => setDraftMode('different')} className={`rounded-2xl border-2 p-4 text-left ${draftMode === 'different' ? 'border-[#e76f2e] bg-[#fff0e7]' : 'border-[#ded8cb]'}`}><strong className="text-lg">🔥 โจทย์แตกต่างกัน</strong><p className="mt-1 text-sm font-bold text-[#68736d]">แต่ละการ์ดมีสมการของกลุ่มตัวเอง</p></button>
+      </div>
+
+      <p className="mt-5 text-sm font-black text-[#4e5a53]">ชนิดของจำนวน</p>
+      <div className="mt-2 grid gap-3 sm:grid-cols-2">
+        <button type="button" onClick={() => setDraftNumberMode('positive')} className={`rounded-2xl border-2 p-4 text-left ${draftNumberMode === 'positive' ? 'border-[#249263] bg-[#e8f7ef]' : 'border-[#ded8cb]'}`}><strong className="text-lg">🌱 จำนวนบวก</strong><p className="mt-1 text-sm font-bold text-[#68736d]">ตัวหน้าและตัวหลังเป็นจำนวนบวก</p></button>
+        <button type="button" onClick={() => setDraftNumberMode('mixed')} className={`rounded-2xl border-2 p-4 text-left ${draftNumberMode === 'mixed' ? 'border-[#8459c4] bg-[#f1ebfb]' : 'border-[#ded8cb]'}`}><strong className="text-lg">± จำนวนเต็มแบบผสม</strong><p className="mt-1 text-sm font-bold text-[#68736d]">มีทั้งจำนวนบวกและจำนวนติดลบ</p></button>
+      </div>
+
+      <p className="mt-3 rounded-xl bg-[#fff4d9] px-3 py-2 text-xs font-bold text-[#77551e]">กำลังเล่นข้อ {currentQuestion}/10 · เปลี่ยนโหมดแล้วเลขข้อ คะแนน และสมาชิกจะนับต่อ โดยล้างเฉพาะคำตอบปัจจุบัน</p>
+      <div className="mt-5 grid grid-cols-2 gap-3"><button type="button" onClick={onCancel} className="min-h-12 rounded-xl bg-[#eeeae1] font-bold">ยกเลิก</button><button type="submit" className="min-h-12 rounded-xl bg-[#30265f] font-black text-white">บันทึกการตั้งค่า</button></div>
+    </form>
+  </div>
 }
 
 function SettingsModal({ names, mode, numberMode, totalQuestions, currentQuestion, onCancel, onApply }) {

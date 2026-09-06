@@ -1,7 +1,27 @@
 import { useId, useState } from 'react'
 import { ChevronRight, Eye } from 'lucide-react'
 
-export const FACTOR_QUESTIONS = [
+const buildQuestions = (questions) => questions.map((question) => ({
+  ...question,
+  a: question.p * question.q,
+  b: question.p * question.s + question.q * question.r,
+  c: question.r * question.s,
+}))
+
+export const POSITIVE_FACTOR_QUESTIONS = buildQuestions([
+  { p: 1, q: 1, r: 1, s: 5 },
+  { p: 1, q: 1, r: 2, s: 3 },
+  { p: 2, q: 1, r: 1, s: 3 },
+  { p: 2, q: 1, r: 2, s: 3 },
+  { p: 2, q: 3, r: 1, s: 2 },
+  { p: 3, q: 1, r: 1, s: 2 },
+  { p: 3, q: 2, r: 1, s: 3 },
+  { p: 4, q: 1, r: 1, s: 2 },
+  { p: 2, q: 2, r: 1, s: 3 },
+  { p: 3, q: 2, r: 2, s: 3 },
+])
+
+export const MIXED_FACTOR_QUESTIONS = buildQuestions([
   { p: 1, q: 1, r: -3, s: 5 },
   { p: 1, q: 1, r: 2, s: 3 },
   { p: 1, q: 1, r: -1, s: -4 },
@@ -12,14 +32,12 @@ export const FACTOR_QUESTIONS = [
   { p: 2, q: 3, r: -1, s: -2 },
   { p: 3, q: 2, r: -2, s: 1 },
   { p: 4, q: 1, r: -1, s: 2 },
-].map((question) => ({
-  ...question,
-  a: question.p * question.q,
-  b: question.p * question.s + question.q * question.r,
-  c: question.r * question.s,
-}))
+])
 
-const FACTOR_CHOICES = [-7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7]
+export const FACTOR_QUESTIONS = MIXED_FACTOR_QUESTIONS
+
+const POSITIVE_CHOICES = [1, 2, 3, 4, 5, 6, 7]
+const MIXED_CHOICES = [-7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7]
 const filled = (answer) => answer.length === 4 && answer.filter(Number.isFinite).length === 4
 const signedTerm = (value) => value < 0 ? `− ${Math.abs(value)}` : `+ ${value}`
 
@@ -39,12 +57,13 @@ const candidateAnswer = (answer) => filled(answer)
   ? `${linearFactor(answer[0], answer[2])}${linearFactor(answer[1], answer[3])}`
   : '(□x □)(□x □)'
 
-export function FactorPlayArea({ teams, teamNames, question, index, answers, revealed, onSelect, onReveal, onNext }) {
+export function FactorPlayArea({ teams, teamNames, questions, index, answers, revealed, numberMode, onSelect, onReveal, onNext }) {
   const allReady = answers.every(filled)
   const winners = teams
     .map((_, teamIndex) => teamIndex)
-    .filter((teamIndex) => isFactorCorrect(answers[teamIndex], question))
+    .filter((teamIndex) => isFactorCorrect(answers[teamIndex], questions[teamIndex]))
     .map((teamIndex) => teamNames[teamIndex])
+  const choices = numberMode === 'mixed' ? MIXED_CHOICES : POSITIVE_CHOICES
 
   return <>
     <section className="team-board-grid grid gap-3" aria-label="ตารางแยกตัวประกอบของทั้งสี่กลุ่ม">
@@ -52,7 +71,8 @@ export function FactorPlayArea({ teams, teamNames, question, index, answers, rev
         key={team.name}
         team={{ ...team, name: teamNames[teamIndex] }}
         questionIndex={index}
-        question={question}
+        question={questions[teamIndex]}
+        choices={choices}
         answer={answers[teamIndex]}
         revealed={revealed}
         onSelect={(slot, number) => onSelect(teamIndex, slot, number)}
@@ -72,7 +92,7 @@ export function FactorPlayArea({ teams, teamNames, question, index, answers, rev
   </>
 }
 
-function FactorTeamCard({ team, questionIndex, question, answer, revealed, onSelect }) {
+function FactorTeamCard({ team, questionIndex, question, choices, answer, revealed, onSelect }) {
   const [activeSlot, setActiveSlot] = useState(0)
   const arrowMarkerId = useId().replaceAll(':', '')
   const ready = filled(answer)
@@ -131,7 +151,7 @@ function FactorTeamCard({ team, questionIndex, question, answer, revealed, onSel
                 <th className="w-14 py-2 text-left text-[#756d88]">กลาง</th>
                 <td className="w-12 text-xl font-black">{question.b}</td><td className="w-6">=</td>
                 <td className="py-2 text-left text-sm font-black" colSpan="3" style={{ color: team.color }}>
-                  {ready ? <>{p}×{s} + {q}×{r} = {crossOne} {crossTwo < 0 ? '−' : '+'} {Math.abs(crossTwo)} = {crossSum}</> : 'ระบบคำนวณให้อัตโนมัติ'}
+                  {ready ? <>({p}×{s}) + ({q}×{r}) = {crossOne} {crossTwo < 0 ? '−' : '+'} {Math.abs(crossTwo)} = {crossSum}</> : 'ระบบคำนวณให้อัตโนมัติ'}
                 </td>
               </tr>
               <tr className="border-t border-[#ddd7e7]">
@@ -145,7 +165,7 @@ function FactorTeamCard({ team, questionIndex, question, answer, revealed, onSel
       <div className="factor-number-panel rounded-xl bg-white/45 p-2">
         <p className="mb-2 text-center text-sm font-black" style={{ color: team.color }}>เลือกตัวเลข</p>
         <div className="factor-number-pad grid grid-cols-7 gap-1.5">
-          {FACTOR_CHOICES.map((number) => <button key={number} onClick={() => chooseNumber(number)} disabled={revealed} className={`team-number min-h-11 rounded-lg border-2 border-white bg-white/90 text-lg font-black shadow-sm transition active:translate-y-0.5 ${number < 0 ? 'text-[#b23f35]' : 'text-[#29362f]'} hover:bg-white disabled:cursor-default`}>{number}</button>)}
+          {choices.map((number) => <button key={number} onClick={() => chooseNumber(number)} disabled={revealed} className={`team-number min-h-11 rounded-lg border-2 border-white bg-white/90 text-lg font-black shadow-sm transition active:translate-y-0.5 ${number < 0 ? 'text-[#b23f35]' : 'text-[#29362f]'} hover:bg-white disabled:cursor-default`}>{number}</button>)}
         </div>
       </div>
     </div>
