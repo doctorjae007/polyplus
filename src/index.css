@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans Thai", "Leelawadee UI", Tahoma, sans-serif;
+}
+
+:root {
+  font-family: var(--font-sans);
+  color: #19231d;
+  background: #f4f0e6;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+button { -webkit-tap-highlight-color: transparent; }
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 10% 6%, rgba(255, 192, 87, .22), transparent 25rem),
+    radial-gradient(circle at 94% 88%, rgba(42, 130, 91, .12), transparent 30rem),
+    #f4f0e6;
+}
+
+.paper-grid {
+  background-image: linear-gradient(rgba(30, 59, 44, .045) 1px, transparent 1px), linear-gradient(90deg, rgba(30, 59, 44, .045) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.number-button {
+  box-shadow: 0 5px 0 #d9d3c5;
+  transition: transform .12s ease, box-shadow .12s ease, background-color .12s ease;
+}
+.number-button:active { transform: translateY(4px); box-shadow: 0 1px 0 #d9d3c5; }
+.number-button.selected { box-shadow: 0 5px 0 #174b34; }
+
+@keyframes pop { 0% { transform: scale(.92); opacity: .2; } 65% { transform: scale(1.03); } 100% { transform: scale(1); opacity: 1; } }
+.pop { animation: pop .3s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
