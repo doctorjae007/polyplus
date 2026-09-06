@@ -103,6 +103,8 @@ function App() {
   return (
     <main className="paper-grid min-h-screen px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
       <div className="mx-auto max-w-[1500px]">
+        <div className="grid items-start gap-4 md:grid-cols-[minmax(0,1fr)_250px] xl:grid-cols-[minmax(0,1fr)_290px]">
+        <div className="min-w-0">
         <header className="mb-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="grid size-11 place-items-center rounded-2xl bg-[#193b2b] text-xl font-black text-white shadow-sm rotate-[-3deg]">×</div>
@@ -111,8 +113,7 @@ function App() {
           <button onClick={() => setShowReset(true)} className="flex min-h-11 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white/70 px-4 text-sm font-bold text-[#5c635e] hover:bg-white"><RotateCcw size={17} /> <span className="hidden sm:inline">เริ่มใหม่</span></button>
         </header>
 
-        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-          <div className="grid min-w-0 gap-4 xl:grid-cols-[.85fr_1.15fr]">
+        <div className="grid min-w-0 gap-4 xl:grid-cols-[.85fr_1.15fr]">
           <QuestionPanel question={question} questionIndex={questionIndex} round={round} revealed={revealed} />
           <section className="rounded-[28px] border-2 p-4 shadow-sm transition-colors sm:p-6" style={{ borderColor: revealed ? '#ded8cb' : TEAMS[activeTeam].color, backgroundColor: revealed ? '#fffdf8' : TEAMS[activeTeam].pale }}>
             <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="เลือกกลุ่มที่จะตอบ">
@@ -146,6 +147,7 @@ function App() {
             {!revealed && <p className="mt-2 text-center text-xs font-bold text-[#85877f]">{locked.filter(Boolean).length}/4 กลุ่มพร้อมแล้ว · กลุ่มที่ตอบถูกได้ 1 คะแนน</p>}
           </section>
           </div>
+          </div>
           <ScoreSidebar scores={scores} answers={answers} locked={locked} question={question} revealed={revealed} />
         </div>
       </div>
@@ -155,12 +157,12 @@ function App() {
 }
 
 function ScoreSidebar({ scores, answers, locked, question, revealed }) {
-  return <aside className="overflow-hidden rounded-[28px] border border-[#d8d2c5] bg-[#173c2c] p-3 text-white shadow-xl lg:sticky lg:top-6" aria-label="แถบคะแนน">
+  return <aside className="overflow-hidden rounded-[28px] border border-[#d8d2c5] bg-[#173c2c] p-3 text-white shadow-xl md:sticky md:top-4 md:min-h-[calc(100vh-2rem)]" aria-label="แถบคะแนน">
     <div className="flex items-center justify-between px-2 py-2">
       <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#acc8b9]">Score board</p><h2 className="text-xl font-black">พลังของแต่ละทีม</h2></div>
       <Trophy className="text-[#ffc45d]" size={28} />
     </div>
-    <div className="mt-2 grid grid-cols-2 gap-2 lg:grid-cols-1">
+    <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-1">
       {TEAMS.map((team, index) => {
         const correct = revealed && isCorrect(answers[index], question)
         const status = revealed ? (correct ? '+1 พลัง!' : 'ข้อนี้ยังไม่ได้') : (locked[index] ? 'พร้อมเฉลย' : 'รอคำตอบ')
