@@ -117,7 +117,7 @@ function FactorTeamCard({ team, questionIndex, question, choices, answer, reveal
     setActiveSlot((activeSlot + 1) % 4)
   }
 
-  return <article className={`relative overflow-hidden rounded-[22px] border-2 p-3 shadow-sm ${revealed ? (correct ? 'ring-4 ring-[#52b77d]/30' : 'opacity-90') : ''}`} style={{ borderColor: team.color, backgroundColor: team.pale }}>
+  return <article className={`relative overflow-hidden rounded-[22px] border-2 p-3 shadow-sm ${revealed ? (correct ? 'answer-correct ring-4 ring-[#52b77d]/30' : 'answer-wrong opacity-90') : ''}`} style={{ borderColor: team.color, backgroundColor: team.pale }}>
     <div className="mb-2 flex items-center gap-2">
       <div className="flex min-w-0 items-center gap-2"><span className="text-2xl">{team.animal}</span><h3 className="truncate text-lg font-black" style={{ color: team.color }}>{team.name}</h3></div>
       <div className="ml-1 flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl bg-white/80 px-3 py-1.5 shadow-sm">

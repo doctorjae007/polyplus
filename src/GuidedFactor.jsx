@@ -79,7 +79,7 @@ function GuidedTeamCard({ team, questionIndex, question, answer, choices, reveal
     setActiveSlot(activeSlot === 0 ? 1 : 0)
   }
 
-  return <article className={`rounded-[22px] border-2 p-3 shadow-sm ${revealed && correct ? 'ring-4 ring-[#52b77d]/30' : ''}`} style={{ borderColor: team.color, backgroundColor: team.pale }}>
+  return <article className={`rounded-[22px] border-2 p-3 shadow-sm ${revealed ? (correct ? 'answer-correct ring-4 ring-[#52b77d]/30' : 'answer-wrong') : ''}`} style={{ borderColor: team.color, backgroundColor: team.pale }}>
     <div className="mb-2 flex items-center gap-2">
       <span className="text-2xl">{team.animal}</span><h3 className="min-w-0 truncate text-lg font-black" style={{ color: team.color }}>{team.name}</h3>
       <div className="ml-1 flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl bg-white/80 px-3 py-1.5 shadow-sm"><span className="text-[10px] font-black text-[#63747a]">ข้อ {questionIndex + 1}/10</span><strong className="truncate text-xl font-black text-[#174c63]">{polynomial(question)}</strong></div>

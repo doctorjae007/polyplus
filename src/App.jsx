@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronRight, Cloud, CloudOff, Eye, LoaderCircle, Plus, RotateCcw, Settings, Sparkles, Trash2, Trophy, UserPlus } from 'lucide-react'
 import { FACTOR_QUESTIONS, MIXED_FACTOR_QUESTIONS, POSITIVE_FACTOR_QUESTIONS, FactorPlayArea, isFactorCorrect } from './FactorDetective'
 import { GUIDED_QUESTION_COUNT, MIXED_GUIDED_QUESTIONS, POSITIVE_GUIDED_QUESTIONS, GuidedPlayArea, isGuidedCorrect } from './GuidedFactor'
+import { FeedbackEffects, playFeedbackSound } from './FeedbackEffects'
 
 const TEAMS = [
   { name: 'ทีมฟ้า', animal: '🐬', color: '#2878c8', pale: '#ddecff' },
@@ -55,6 +56,7 @@ export default function App() {
   const [guidedNumberMode, setGuidedNumberMode] = useState('positive')
   const [guidedRevealed, setGuidedRevealed] = useState(false)
   const [guidedFinished, setGuidedFinished] = useState(false)
+  const [feedback, setFeedback] = useState(null)
   const [members, setMembers] = useState(blankMembers)
   const [teamNames, setTeamNames] = useState(() => TEAMS.map((team) => team.name))
   const [gameMode, setGameMode] = useState('same')
@@ -159,8 +161,11 @@ export default function App() {
 
   const reveal = () => {
     if (!allReady || revealed) return
-    setScores((current) => current.map((score, index) => score + (isCorrect(answers[index], teamQuestions[index]) ? 1 : 0)))
+    const results = TEAMS.map((_, index) => isCorrect(answers[index], teamQuestions[index]))
+    setScores((current) => current.map((score, index) => score + (results[index] ? 1 : 0)))
     setRevealed(true)
+    playFeedbackSound(results)
+    setFeedback({ id: Date.now(), results })
   }
 
   const nextQuestion = () => {
@@ -185,8 +190,11 @@ export default function App() {
 
   const revealFactor = () => {
     if (factorRevealed || !factorAnswers.every((answer) => answer.length === 4 && answer.filter(Number.isFinite).length === 4)) return
-    setFactorScores((current) => current.map((score, index) => score + (isFactorCorrect(factorAnswers[index], factorTeamQuestions[index]) ? 1 : 0)))
+    const results = TEAMS.map((_, index) => isFactorCorrect(factorAnswers[index], factorTeamQuestions[index]))
+    setFactorScores((current) => current.map((score, index) => score + (results[index] ? 1 : 0)))
     setFactorRevealed(true)
+    playFeedbackSound(results)
+    setFeedback({ id: Date.now(), results })
   }
 
   const nextFactorQuestion = () => {
@@ -208,8 +216,11 @@ export default function App() {
 
   const revealGuided = () => {
     if (guidedRevealed || !guidedAnswers.every((answer) => answer.filter(Number.isFinite).length === 2)) return
-    setGuidedScores((current) => current.map((score, index) => score + (isGuidedCorrect(guidedAnswers[index], guidedTeamQuestions[index]) ? 1 : 0)))
+    const results = TEAMS.map((_, index) => isGuidedCorrect(guidedAnswers[index], guidedTeamQuestions[index]))
+    setGuidedScores((current) => current.map((score, index) => score + (results[index] ? 1 : 0)))
     setGuidedRevealed(true)
+    playFeedbackSound(results)
+    setFeedback({ id: Date.now(), results })
   }
 
   const nextGuidedQuestion = () => {
@@ -331,6 +342,7 @@ export default function App() {
       </div>
     </div>
     {showReset && <ConfirmReset onCancel={() => setShowReset(false)} onConfirm={activeReset} />}
+    <FeedbackEffects feedback={feedback} teams={TEAMS} teamNames={teamNames} onDone={() => setFeedback(null)} />
     {memberTeam !== null && <MemberModal team={{ ...TEAMS[memberTeam], name: teamNames[memberTeam] }} onCancel={() => setMemberTeam(null)} onAdd={addMember} />}
     {showSettings && (activity === 'pairs'
       ? <SettingsModal names={teamNames} mode={gameMode} numberMode={numberMode} totalQuestions={totalQuestions} currentQuestion={questionIndex + 1} onCancel={() => setShowSettings(false)} onApply={applySettings} />
@@ -466,7 +478,7 @@ function QuestionBanner({ question, index, totalQuestions, revealed, mode, numbe
 }
 
 function TeamCard({ team, question, showQuestion, integerMode, answer, choices, revealed, correct, onSelect }) {
-  return <article className={`relative overflow-hidden rounded-[22px] border-2 p-3 shadow-sm ${revealed ? (correct ? 'ring-4 ring-[#52b77d]/30' : 'opacity-85') : ''}`} style={{ borderColor: team.color, backgroundColor: team.pale }}>
+  return <article className={`relative overflow-hidden rounded-[22px] border-2 p-3 shadow-sm ${revealed ? (correct ? 'answer-correct ring-4 ring-[#52b77d]/30' : 'answer-wrong opacity-85') : ''}`} style={{ borderColor: team.color, backgroundColor: team.pale }}>
     <div className="mb-2 flex items-center justify-between"><div className="flex items-center gap-2"><span className="text-2xl" role="img">{team.animal}</span><h3 className="text-lg font-black" style={{ color: team.color }}>{team.name}</h3></div><div className="flex items-center gap-1.5"><span className="grid size-8 place-items-center rounded-lg bg-white text-lg font-black" style={{ color: team.color }}>{answer[0] ?? '?'}</span><span className="font-black" style={{ color: team.color }}>×</span><span className="grid size-8 place-items-center rounded-lg bg-white text-lg font-black" style={{ color: team.color }}>{answer[1] ?? '?'}</span><span className={`ml-1 rounded-full px-2 py-1 text-[10px] font-black ${revealed ? (correct ? 'bg-[#17613e] text-white' : 'bg-[#b84f37] text-white') : answer.length === 2 ? 'bg-white text-[#3f5b4c]' : 'bg-black/5 text-[#6f766f]'}`}>{revealed ? (correct ? 'ถูก +1' : 'ยังไม่ถูก') : answer.length === 2 ? 'พร้อม' : 'เลือก 2 ตัว'}</span></div></div>
     {showQuestion && <div className="mb-2 flex items-center justify-center gap-2 rounded-xl bg-white/65 px-2 py-1.5 text-xs font-bold"><span>คูณได้ <strong className="text-lg" style={{ color: team.color }}>{question.product}</strong></span><span className="text-black/25">•</span><span>บวกได้ <strong className="text-lg" style={{ color: team.color }}>{question.sum}</strong></span>{revealed && <span className="ml-1 rounded-lg bg-white px-2 py-1 font-black" style={{ color: team.color }}>เฉลย {question.m}, {question.n}</span>}</div>}
     <div className={`grid gap-1.5 ${integerMode ? 'grid-cols-7' : 'grid-cols-5'}`}>
