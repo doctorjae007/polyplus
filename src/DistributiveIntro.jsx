@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { ChevronRight, Eye, Eraser } from 'lucide-react'
 
 export const DISTRIBUTIVE_QUESTIONS = [
@@ -71,16 +71,22 @@ export function DistributivePlayArea({ teams, teamNames, questions, index, answe
 function DistributiveTeamCard({ team, question, answer, revealed, onSelect }) {
   const expected = expectedTokens(question)
   const [activeSlot, setActiveSlot] = useState(0)
+  const activeSlotRef = useRef(0)
+  const selectSlot = (slot) => {
+    activeSlotRef.current = slot
+    setActiveSlot(slot)
+  }
   const ready = isDistributiveReady(answer, question)
   const correct = isDistributiveCorrect(answer, question)
   let slot = 0
   const answerSlot = () => {
     const currentSlot = slot++
-    return <TokenSlot key={currentSlot} value={answer[currentSlot]} slot={currentSlot} activeSlot={activeSlot} setActiveSlot={setActiveSlot} color={team.color} disabled={revealed}/>
+    return <TokenSlot key={currentSlot} value={answer[currentSlot]} slot={currentSlot} activeSlot={activeSlot} setActiveSlot={selectSlot} color={team.color} disabled={revealed}/>
   }
   const chooseToken = (token) => {
-    onSelect(activeSlot, token)
-    setActiveSlot((activeSlot + 1) % expected.length)
+    const selectedSlot = activeSlotRef.current
+    onSelect(selectedSlot, token)
+    selectSlot((selectedSlot + 1) % expected.length)
   }
 
   return <article className={`rounded-[22px] border-2 p-3 shadow-sm ${revealed ? (correct ? 'answer-correct ring-4 ring-[#52b77d]/30' : 'answer-wrong') : ''}`} style={{ borderColor: team.color, backgroundColor: team.pale }}>

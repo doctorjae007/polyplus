@@ -576,6 +576,9 @@ function StudentRoom({ session, onLeaveRoom }) {
   const [payload, setPayload] = useState(null)
   const [error, setError] = useState('')
   const sending = useRef(0)
+  const sendQueue = useRef(Promise.resolve())
+  const answerRef = useRef([])
+  const answerContextRef = useRef('')
 
   useEffect(() => {
     let active = true
@@ -617,22 +620,36 @@ function StudentRoom({ session, onLeaveRoom }) {
   const revealedNow = activity === 'intro' ? state.introRevealed : activity === 'guided' ? state.guidedRevealed : activity === 'factor' ? state.factorRevealed : state.revealed
   const finishedNow = activity === 'intro' ? state.introFinished : activity === 'guided' ? state.guidedFinished : activity === 'factor' ? state.factorFinished : state.finished
   const questionIndex = activity === 'intro' ? state.introQuestionIndex : activity === 'guided' ? state.guidedQuestionIndex : activity === 'factor' ? state.factorQuestionIndex : state.questionIndex
+  const answerContext = `${activity}:${questionIndex ?? 0}`
+  if (answerContextRef.current !== answerContext || sending.current === 0) {
+    answerContextRef.current = answerContext
+    answerRef.current = answer
+  }
 
   const updateAnswer = (nextAnswer) => {
+    answerRef.current = nextAnswer
     const answers = Array.isArray(state[key]) && state[key].length === 4 ? state[key].map((item) => [...item]) : blankAnswers()
     answers[teamIndex] = nextAnswer
     setPayload((current) => ({ ...current, state: { ...current.state, [key]: answers } }))
     sending.current += 1
-    fetch(`/api/rooms/${session.code}/answer`, { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.token}` }, body: JSON.stringify({ activity, answer: nextAnswer }) })
+    sendQueue.current = sendQueue.current.catch(() => {}).then(async () => {
+      const response = await fetch(`/api/rooms/${session.code}/answer`, { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.token}` }, body: JSON.stringify({ activity, answer: nextAnswer }) })
+      if (!response.ok) throw new Error('answer rejected')
+      setError('')
+    })
       .catch(() => setError('ส่งคำตอบไม่สำเร็จ ระบบจะลองเชื่อมต่อใหม่'))
       .finally(() => { sending.current -= 1 })
   }
   const updateSlot = (slot, value, size) => {
-    const next = answer.length === size ? [...answer] : Array(size).fill(null)
+    const currentAnswer = answerRef.current
+    const next = currentAnswer.length === size ? [...currentAnswer] : Array(size).fill(null)
     next[slot] = value
     updateAnswer(next)
   }
-  const selectPair = (number) => updateAnswer(answer.includes(number) ? answer.filter((value) => value !== number) : answer.length < 2 ? [...answer, number] : [answer[1], number])
+  const selectPair = (number) => {
+    const currentAnswer = answerRef.current
+    updateAnswer(currentAnswer.includes(number) ? currentAnswer.filter((value) => value !== number) : currentAnswer.length < 2 ? [...currentAnswer, number] : [currentAnswer[1], number])
+  }
   const introSize = (question.common === 1 ? 3 : 4) + (question.innerA === 1 ? 0 : 1)
   const title = activity === 'intro' ? 'แจกแจงให้แจ่ม' : activity === 'guided' ? 'คู่คิดพิชิตวงเล็บ' : activity === 'factor' ? 'นักสืบตัวประกอบ' : 'คู่คูณชวนคิด'
 
