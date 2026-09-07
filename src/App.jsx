@@ -98,6 +98,8 @@ function TeacherGame({ classroom, onLeaveRoom }) {
   const [showSettings, setShowSettings] = useState(false)
   const [hydrated, setHydrated] = useState(false)
   const [saveStatus, setSaveStatus] = useState('loading')
+  const localRevision = useRef(0)
+  const savePending = useRef(false)
   const questionBank = numberMode === 'integers' ? INTEGER_QUESTIONS : QUESTIONS
   const teamQuestions = TEAMS.map((_, index) => gameMode === 'same' ? questionBank[questionIndex] : questionBank[(questionIndex + index * 4) % questionBank.length])
   const factorQuestionBank = factorNumberMode === 'mixed' ? MIXED_FACTOR_QUESTIONS : POSITIVE_FACTOR_QUESTIONS
@@ -181,6 +183,8 @@ function TeacherGame({ classroom, onLeaveRoom }) {
 
   useEffect(() => {
     if (!hydrated) return
+    const revision = ++localRevision.current
+    savePending.current = true
     const state = { roomStatus, activity, introQuestionIndex, introAnswers, introScores, introGameMode, introRevealed, introFinished, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorGameMode, factorNumberMode, factorRevealed, factorFinished, guidedQuestionIndex, guidedAnswers, guidedScores, guidedGameMode, guidedNumberMode, guidedRevealed, guidedFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished }
     if (!classroom) localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
     setSaveStatus('saving')
@@ -190,6 +194,7 @@ function TeacherGame({ classroom, onLeaveRoom }) {
         if (!response.ok) throw new Error('save failed')
         setSaveStatus('saved')
       } catch { setSaveStatus('offline') }
+      finally { if (localRevision.current === revision) savePending.current = false }
     }, 450)
     return () => clearTimeout(timer)
   }, [hydrated, roomStatus, activity, introQuestionIndex, introAnswers, introScores, introGameMode, introRevealed, introFinished, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorGameMode, factorNumberMode, factorRevealed, factorFinished, guidedQuestionIndex, guidedAnswers, guidedScores, guidedGameMode, guidedNumberMode, guidedRevealed, guidedFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished, classroom?.code, classroom?.token])
@@ -201,11 +206,14 @@ function TeacherGame({ classroom, onLeaveRoom }) {
       setter((current) => JSON.stringify(current) === JSON.stringify(incoming) ? current : incoming)
     }
     const poll = async () => {
+      if (savePending.current) return
+      const revision = localRevision.current
       try {
         const response = await fetch(`/api/rooms/${classroom.code}`, { headers: { Authorization: `Bearer ${classroom.token}` } })
         if (response.status === 404 || response.status === 401) return onLeaveRoom()
         if (!response.ok) return
         const payload = await response.json()
+        if (savePending.current || localRevision.current !== revision) return
         setRoomMeta(payload.room)
         syncAnswers(setIntroAnswers, payload.state?.introAnswers)
         syncAnswers(setAnswers, payload.state?.answers)
