@@ -1,18 +1,12 @@
-export const gameStateSchema = `CREATE TABLE IF NOT EXISTS game_state (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
-  data TEXT NOT NULL,
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-)`
-
-export const classroomRoomsSchema = `CREATE TABLE classroom_rooms (
+CREATE TABLE classroom_rooms (
   code TEXT PRIMARY KEY NOT NULL,
   teacher_token TEXT NOT NULL UNIQUE,
   state TEXT NOT NULL DEFAULT '{}',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-)`
+);
 
-export const classroomTeamsSchema = `CREATE TABLE classroom_teams (
+CREATE TABLE classroom_teams (
   room_code TEXT NOT NULL,
   team_index INTEGER NOT NULL CHECK (team_index BETWEEN 0 AND 3),
   player_token TEXT NOT NULL UNIQUE,
@@ -20,4 +14,6 @@ export const classroomTeamsSchema = `CREATE TABLE classroom_teams (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (room_code, team_index),
   FOREIGN KEY (room_code) REFERENCES classroom_rooms(code) ON DELETE CASCADE
-)`
+);
+
+PRAGMA optimize;

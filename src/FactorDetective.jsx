@@ -57,7 +57,7 @@ const candidateAnswer = (answer) => filled(answer)
   ? `${linearFactor(answer[0], answer[2])}${linearFactor(answer[1], answer[3])}`
   : '(□x □)(□x □)'
 
-export function FactorPlayArea({ teams, teamNames, questions, index, answers, revealed, numberMode, onSelect, onReveal, onNext }) {
+export function FactorPlayArea({ teams, teamNames, questions, index, answers, revealed, numberMode, onSelect, onReveal, onNext, hideControls = false }) {
   const allReady = answers.every(filled)
   const winners = teams
     .map((_, teamIndex) => teamIndex)
@@ -79,7 +79,7 @@ export function FactorPlayArea({ teams, teamNames, questions, index, answers, re
       />)}
     </section>
 
-    <div className="mt-3 flex items-center gap-3 rounded-2xl bg-white p-2 shadow-sm">
+    {!hideControls && <div className="mt-3 flex items-center gap-3 rounded-2xl bg-white p-2 shadow-sm">
       <p className="hidden flex-1 pl-2 text-sm font-bold text-[#70776f] sm:block">
         {revealed
           ? (winners.length ? `${winners.join(', ')} ได้กลุ่มละ 1 คะแนน` : 'ข้อนี้ยังไม่มีกลุ่มตอบถูก ลองดูคำใบ้ก่อนเริ่มข้อถัดไป')
@@ -88,7 +88,7 @@ export function FactorPlayArea({ teams, teamNames, questions, index, answers, re
       <button onClick={revealed ? onNext : onReveal} disabled={!revealed && !allReady} className={`flex min-h-14 flex-1 items-center justify-center gap-2 rounded-xl px-6 text-lg font-black sm:max-w-md ${revealed ? 'bg-[#30265f] text-white' : 'bg-[#ffd05a] text-[#352111]'} disabled:cursor-not-allowed disabled:opacity-35`}>
         {revealed ? <>ข้อต่อไป <ChevronRight/></> : <><Eye/> ครูตรวจพร้อมกัน</>}
       </button>
-    </div>
+    </div>}
   </>
 }
 
@@ -151,7 +151,7 @@ function FactorTeamCard({ team, questionIndex, question, choices, answer, reveal
                 <th className="w-14 py-2 text-left text-[#756d88]">กลาง</th>
                 <td className="w-12 text-xl font-black">{question.b}</td><td className="w-6">=</td>
                 <td className="py-2 text-left text-sm font-black" colSpan="3" style={{ color: team.color }}>
-                  {ready ? <>({p}×{s}) + ({q}×{r}) = {crossOne} {crossTwo < 0 ? '−' : '+'} {Math.abs(crossTwo)} = {crossSum}</> : 'ระบบคำนวณให้อัตโนมัติ'}
+                  {ready ? <>{p}×{s} + {q}×{r} = {crossOne} {crossTwo < 0 ? '−' : '+'} {Math.abs(crossTwo)} = <span className="inline-grid min-w-8 place-items-center rounded-lg border-2 border-current bg-white px-1 py-0.5 text-xl leading-none shadow-sm">{crossSum}</span></> : 'ระบบคำนวณให้อัตโนมัติ'}
                 </td>
               </tr>
               <tr className="border-t border-[#ddd7e7]">

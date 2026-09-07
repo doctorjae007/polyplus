@@ -31,7 +31,7 @@ export const isGuidedCorrect = (answer, question) => readyAnswer(answer)
   && answer[0] * answer[1] === question.product
   && answer[0] + answer[1] === question.sum
 
-export function GuidedPlayArea({ teams, teamNames, questions, index, answers, revealed, numberMode, onSelect, onReveal, onNext }) {
+export function GuidedPlayArea({ teams, teamNames, questions, index, answers, revealed, numberMode, onSelect, onReveal, onNext, hideControls = false }) {
   const allReady = answers.every(readyAnswer)
   const winners = teams.map((_, teamIndex) => teamIndex)
     .filter((teamIndex) => isGuidedCorrect(answers[teamIndex], questions[teamIndex]))
@@ -51,12 +51,12 @@ export function GuidedPlayArea({ teams, teamNames, questions, index, answers, re
       />)}
     </section>
 
-    <div className="mt-3 flex items-center gap-3 rounded-2xl bg-white p-2 shadow-sm">
+    {!hideControls && <div className="mt-3 flex items-center gap-3 rounded-2xl bg-white p-2 shadow-sm">
       <p className="hidden flex-1 pl-2 text-sm font-bold text-[#70776f] sm:block">{revealed ? (winners.length ? `${winners.join(', ')} ได้กลุ่มละ 1 คะแนน` : 'ข้อนี้ยังไม่มีกลุ่มตอบถูก') : `พร้อมแล้ว ${answers.filter(readyAnswer).length}/4 กลุ่ม`}</p>
       <button onClick={revealed ? onNext : onReveal} disabled={!revealed && !allReady} className={`flex min-h-14 flex-1 items-center justify-center gap-2 rounded-xl px-6 text-lg font-black sm:max-w-md ${revealed ? 'bg-[#174c63] text-white' : 'bg-[#69d0d8] text-[#123740]'} disabled:cursor-not-allowed disabled:opacity-35`}>
         {revealed ? <>ข้อต่อไป <ChevronRight/></> : <><Eye/> ครูตรวจพร้อมกัน</>}
       </button>
-    </div>
+    </div>}
   </>
 }
 

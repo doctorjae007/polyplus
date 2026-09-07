@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build && node scripts/build-worker.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:worker": "node scripts/smoke-worker.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "latest",
