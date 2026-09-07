@@ -174,6 +174,12 @@ export default {
         return json({ error: 'Unable to access the classroom database' }, 500)
       }
     }
-    return env.ASSETS.fetch(request)
+    const assetPath = url.pathname === '/' ? '/index.html' : url.pathname
+    if (typeof EMBEDDED_ASSETS !== 'undefined' && EMBEDDED_ASSETS.has(assetPath)) {
+      const asset = EMBEDDED_ASSETS.get(assetPath)
+      const bytes = Uint8Array.from(atob(asset.body), (character) => character.charCodeAt(0))
+      return new Response(bytes, { headers: { 'Content-Type': asset.mime, 'Cache-Control': assetPath === '/index.html' ? 'no-cache' : 'public, max-age=31536000, immutable' } })
+    }
+    return env.ASSETS ? env.ASSETS.fetch(request) : json({ error: 'Not found' }, 404)
   },
 }
