@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Check, ChevronRight, Cloud, CloudOff, Copy, Eye, GraduationCap, LoaderCircle, LogOut, Pause, Play, Plus, RotateCcw, Settings, Smartphone, Sparkles, Trash2, Trophy, UserPlus, Users, Wifi } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronRight, Cloud, CloudOff, Copy, Eye, GraduationCap, LoaderCircle, LogOut, Pause, Play, Plus, RotateCcw, Settings, Smartphone, Sparkles, Trash2, Trophy, UserPlus, Users, Wifi } from 'lucide-react'
 import { FACTOR_QUESTIONS, MIXED_FACTOR_QUESTIONS, POSITIVE_FACTOR_QUESTIONS, FactorPlayArea, isFactorCorrect } from './FactorDetective'
 import { GUIDED_QUESTION_COUNT, MIXED_GUIDED_QUESTIONS, POSITIVE_GUIDED_QUESTIONS, GuidedPlayArea, isGuidedCorrect } from './GuidedFactor'
 import { DISTRIBUTIVE_QUESTIONS, DistributivePlayArea, blankDistributiveAnswers, isDistributiveCorrect, isDistributiveReady } from './DistributiveIntro'
@@ -41,6 +41,7 @@ const MEMBER_EMOJIS = ['😀', '😎', '🐯', '🐰', '🐼', '🦁', '🐸', '
 const isCorrect = (answer, q) => answer.length === 2 && answer[0] * answer[1] === q.product && answer[0] + answer[1] === q.sum
 
 export default function App() {
+  const [hasEntered, setHasEntered] = useState(false)
   const [session, setSession] = useState(() => {
     try { return JSON.parse(localStorage.getItem(CLASSROOM_SESSION_KEY)) } catch { return null }
   })
@@ -55,7 +56,34 @@ export default function App() {
   if (session?.role === 'teacher') return <TeacherGame classroom={session} onLeaveRoom={closeSession}/>
   if (session?.role === 'student') return <StudentRoom session={session} onLeaveRoom={closeSession}/>
   if (session?.role === 'solo') return <TeacherGame onLeaveRoom={closeSession}/>
+  if (!hasEntered) return <WelcomeScreen onEnter={() => setHasEntered(true)}/>
   return <ClassroomHome onOpenSession={openSession}/>
+}
+
+function WelcomeScreen({ onEnter }) {
+  return <main className="welcome-page">
+    <div className="welcome-symbol welcome-symbol-one" aria-hidden="true">x²</div>
+    <div className="welcome-symbol welcome-symbol-two" aria-hidden="true">(x + 2)</div>
+    <div className="welcome-symbol welcome-symbol-three" aria-hidden="true">a² − b²</div>
+
+    <section className="welcome-card" aria-labelledby="welcome-title">
+      <div className="welcome-book" aria-hidden="true"><BookOpen size={42}/></div>
+      <p className="welcome-eyebrow"><Sparkles size={17}/> FACTOR RALLY</p>
+      <p className="welcome-kicker">ยินดีต้อนรับเข้าสู่</p>
+      <h1 id="welcome-title">ห้องเรียนการแยกตัวประกอบพหุนาม</h1>
+      <div className="welcome-formula" aria-hidden="true">
+        <span>x² + 5x + 6</span>
+        <strong>=</strong>
+        <span>(x + 2)(x + 3)</span>
+      </div>
+      <p className="welcome-copy">เรียนรู้ผ่านกิจกรรมสนุก ๆ พร้อมช่วยกันคิดและพิชิตโจทย์ไปกับเพื่อนในห้องเรียน</p>
+      <button type="button" onClick={onEnter} className="welcome-enter">
+        เข้าสู่เว็บไซต์ <ArrowRight size={22}/>
+      </button>
+    </section>
+
+    <p className="welcome-footer">คิด • ลอง • เรียนรู้ไปด้วยกัน</p>
+  </main>
 }
 
 function TeacherGame({ classroom, onLeaveRoom }) {

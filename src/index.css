@@ -25,6 +25,170 @@ body {
     #f4f0e6;
 }
 
+.welcome-page {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  min-height: 100vh;
+  min-height: 100svh;
+  place-items: center;
+  overflow: hidden;
+  padding: 2rem 1.25rem 4.5rem;
+  background:
+    radial-gradient(circle at 18% 15%, rgba(255, 210, 90, .2), transparent 22rem),
+    radial-gradient(circle at 86% 82%, rgba(96, 199, 148, .18), transparent 25rem),
+    linear-gradient(145deg, #0c2d21 0%, #173f2e 52%, #0d2a20 100%);
+}
+
+.welcome-page::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 40px 40px;
+  content: '';
+  mask-image: radial-gradient(circle at center, black, transparent 78%);
+}
+
+.welcome-card {
+  width: min(100%, 900px);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 2.5rem;
+  padding: clamp(2rem, 6vw, 4.75rem) clamp(1.25rem, 7vw, 5.5rem) clamp(2.25rem, 6vw, 4.5rem);
+  background: rgba(9, 35, 25, .64);
+  box-shadow: 0 32px 90px rgba(2, 18, 12, .38), inset 0 1px rgba(255,255,255,.08);
+  color: white;
+  text-align: center;
+  backdrop-filter: blur(12px);
+}
+
+.welcome-book {
+  display: grid;
+  width: 4.75rem;
+  height: 4.75rem;
+  margin: 0 auto 1.25rem;
+  place-items: center;
+  border-radius: 1.5rem;
+  background: #ffd05a;
+  box-shadow: 0 9px 0 #c99024, 0 18px 35px rgba(0,0,0,.22);
+  color: #173c2c;
+  transform: rotate(-3deg);
+}
+
+.welcome-eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  margin: 0 0 1.25rem;
+  color: #ffd66d;
+  font-size: .9rem;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.welcome-kicker {
+  margin: 0 0 .25rem;
+  color: #b9d7c8;
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  font-weight: 800;
+}
+
+.welcome-card h1 {
+  max-width: 760px;
+  margin: 0 auto;
+  color: #fffdf5;
+  font-size: clamp(2.25rem, 6vw, 4.8rem);
+  font-weight: 900;
+  letter-spacing: -.04em;
+  line-height: 1.13;
+  text-wrap: balance;
+}
+
+.welcome-formula {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  margin: 1.75rem auto 0;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(.55rem, 2vw, 1.1rem);
+  border: 1px dashed rgba(255,255,255,.24);
+  border-radius: 999px;
+  padding: .65rem 1.15rem;
+  background: rgba(255,255,255,.07);
+  color: #d8eee3;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(.95rem, 2.8vw, 1.35rem);
+  white-space: nowrap;
+}
+
+.welcome-formula strong { color: #ffd05a; }
+
+.welcome-copy {
+  max-width: 610px;
+  margin: 1.5rem auto 0;
+  color: #c5d9cf;
+  font-size: clamp(1rem, 2vw, 1.16rem);
+  font-weight: 650;
+  line-height: 1.75;
+}
+
+.welcome-enter {
+  display: inline-flex;
+  min-height: 4rem;
+  margin-top: 2rem;
+  align-items: center;
+  justify-content: center;
+  gap: .7rem;
+  border: 0;
+  border-radius: 1.15rem;
+  padding: .9rem 2rem;
+  background: #ffd05a;
+  box-shadow: 0 7px 0 #bd8420, 0 15px 32px rgba(0,0,0,.2);
+  color: #173c2c;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.15rem;
+  font-weight: 900;
+  transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+
+.welcome-enter:hover { background: #ffdb76; transform: translateY(-2px); box-shadow: 0 9px 0 #bd8420, 0 18px 36px rgba(0,0,0,.24); }
+.welcome-enter:active { transform: translateY(5px); box-shadow: 0 2px 0 #bd8420, 0 8px 20px rgba(0,0,0,.2); }
+.welcome-enter:focus-visible { outline: 4px solid rgba(255,255,255,.9); outline-offset: 5px; }
+
+.welcome-symbol {
+  position: absolute;
+  z-index: -1;
+  color: rgba(255,255,255,.12);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 700;
+  user-select: none;
+}
+.welcome-symbol-one { top: 8%; left: 7%; font-size: clamp(3rem, 8vw, 7rem); transform: rotate(-11deg); }
+.welcome-symbol-two { right: 4%; bottom: 16%; font-size: clamp(2rem, 5vw, 4.25rem); transform: rotate(8deg); }
+.welcome-symbol-three { top: 18%; right: 7%; font-size: clamp(1.4rem, 3vw, 2.5rem); transform: rotate(5deg); }
+
+.welcome-footer {
+  position: absolute;
+  bottom: 1.5rem;
+  margin: 0;
+  color: rgba(221, 239, 230, .62);
+  font-size: .9rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+@media (max-width: 520px) {
+  .welcome-card { border-radius: 2rem; }
+  .welcome-formula { border-radius: 1.25rem; white-space: normal; }
+  .welcome-symbol-three { display: none; }
+  .welcome-enter { width: 100%; }
+}
+
 .paper-grid {
   background-image: linear-gradient(rgba(30, 59, 44, .045) 1px, transparent 1px), linear-gradient(90deg, rgba(30, 59, 44, .045) 1px, transparent 1px);
   background-size: 32px 32px;
