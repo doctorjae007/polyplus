@@ -456,6 +456,20 @@ function TeacherGame({ classroom, onLeaveRoom }) {
     if (response.ok) setRoomMeta((current) => ({ ...current, occupiedTeams: (current?.occupiedTeams ?? []).filter((index) => index !== teamIndex) }))
   }
 
+  const adjustScore = (teamIndex, amount) => {
+    const setActiveScores = activity === 'intro' ? setIntroScores : activity === 'factor' ? setFactorScores : activity === 'guided' ? setGuidedScores : setScores
+    setActiveScores((current) => current.map((score, index) => index === teamIndex ? Math.max(0, score + amount) : score))
+  }
+
+  const resetAllScores = () => {
+    const emptyScores = () => TEAMS.map(() => 0)
+    setIntroScores(emptyScores())
+    setScores(emptyScores())
+    setGuidedScores(emptyScores())
+    setFactorScores(emptyScores())
+    setShowReset(false)
+  }
+
   if (!hydrated) return <main className="paper-grid grid min-h-screen place-items-center"><div className="text-center text-[#193b2b]"><LoaderCircle className="mx-auto animate-spin" size={44}/><p className="mt-3 font-black">กำลังโหลดห้องเรียน…</p></div></main>
   if (activity === 'intro' && introFinished) return <Results scores={introScores} members={members} teamNames={teamNames} totalQuestions={introTotalQuestions} onReset={resetIntro} onLeave={onLeaveRoom} activityName="แจกแจงให้แจ่ม" />
   if (activity === 'pairs' && finished) return <Results scores={scores} members={members} teamNames={teamNames} totalQuestions={totalQuestions} onReset={reset} onLeave={onLeaveRoom} />
@@ -467,7 +481,6 @@ function TeacherGame({ classroom, onLeaveRoom }) {
   const activeQuestions = activity === 'intro' ? introTeamQuestions : activity === 'factor' ? factorTeamQuestions : activity === 'guided' ? guidedTeamQuestions : teamQuestions
   const activeTotal = activity === 'intro' ? introTotalQuestions : activity === 'factor' ? FACTOR_QUESTIONS.length : activity === 'guided' ? GUIDED_QUESTION_COUNT : totalQuestions
   const activeRevealed = activity === 'intro' ? introRevealed : activity === 'factor' ? factorRevealed : activity === 'guided' ? guidedRevealed : revealed
-  const activeReset = activity === 'intro' ? resetIntro : activity === 'factor' ? resetFactor : activity === 'guided' ? resetGuided : reset
   const activeCorrect = activity === 'intro' ? isDistributiveCorrect : activity === 'factor' ? isFactorCorrect : activity === 'guided' ? isGuidedCorrect : isCorrect
   const activeAnswerSize = activity === 'factor' ? 4 : 2
   const activeReady = activity === 'intro' ? isDistributiveReady : null
@@ -476,7 +489,7 @@ function TeacherGame({ classroom, onLeaveRoom }) {
 
   return <main className="paper-grid min-h-screen p-3 lg:px-4 lg:py-1">
     <div className="game-shell mx-auto max-w-[1600px] gap-4">
-      <ScoreSidebar scores={activeScores} answers={activeAnswers} members={members} teamNames={teamNames} questions={activeQuestions} totalQuestions={activeTotal} revealed={activeRevealed} isAnswerCorrect={activeCorrect} isAnswerReady={activeReady} answerSize={activeAnswerSize} onAdd={setMemberTeam} onRemove={removeMember} />
+      <ScoreSidebar scores={activeScores} answers={activeAnswers} members={members} teamNames={teamNames} questions={activeQuestions} totalQuestions={activeTotal} revealed={activeRevealed} isAnswerCorrect={activeCorrect} isAnswerReady={activeReady} answerSize={activeAnswerSize} onAdjustScore={adjustScore} onAdd={setMemberTeam} onRemove={removeMember} />
 
       <div className="min-w-0">
         {classroom && <RoomControlBar code={classroom.code} status={roomStatus} occupiedTeams={roomMeta?.occupiedTeams ?? []} onToggle={() => setRoomStatus((status) => status === 'playing' ? 'lobby' : 'playing')} onUnlock={unlockTeam} onLeave={onLeaveRoom}/>}
@@ -489,7 +502,7 @@ function TeacherGame({ classroom, onLeaveRoom }) {
               {[['intro', '1 แจกแจง'], ['pairs', '1.1 คู่คูณ'], ['guided', '1.2 คู่คิด'], ['factor', '2 นักสืบ']].map(([value, label]) => <button key={value} onClick={() => chooseActivity(value)} className={`min-h-8 rounded-lg px-2.5 text-xs font-black transition ${activity === value ? 'bg-[#ffd05a] text-[#473510]' : 'text-[#647069] hover:bg-[#f4f1e9]'}`}>{label}</button>)}
             </div>
             <button onClick={() => setShowSettings(true)} className="flex min-h-10 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white px-3 text-sm font-bold text-[#5c635e]"><Settings size={16}/> ตั้งค่าเกม</button>
-            <button onClick={() => setShowReset(true)} className="flex min-h-10 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white px-3 text-sm font-bold text-[#5c635e]"><RotateCcw size={16}/> เริ่มใหม่</button>
+            <button onClick={() => setShowReset(true)} className="flex min-h-10 items-center gap-2 rounded-xl border border-[#e3b9aa] bg-white px-3 text-sm font-bold text-[#9a4935]"><RotateCcw size={16}/> รีเซตคะแนนทั้งหมด</button>
           </div>
         </header>
 
@@ -513,7 +526,7 @@ function TeacherGame({ classroom, onLeaveRoom }) {
           </>}
       </div>
     </div>
-    {showReset && <ConfirmReset onCancel={() => setShowReset(false)} onConfirm={activeReset} />}
+    {showReset && <ConfirmReset onCancel={() => setShowReset(false)} onConfirm={resetAllScores} />}
     <FeedbackEffects feedback={feedback} teams={TEAMS} teamNames={teamNames} onDone={() => setFeedback(null)} />
     {memberTeam !== null && <MemberModal team={{ ...TEAMS[memberTeam], name: teamNames[memberTeam] }} onCancel={() => setMemberTeam(null)} onAdd={addMember} />}
     {showSettings && (activity === 'pairs'
@@ -725,7 +738,7 @@ function SaveStatus({ status }) {
   return <span className={`hidden min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-black xl:flex ${status === 'offline' ? 'bg-[#fff0e7] text-[#a7462b]' : 'bg-[#e7f3eb] text-[#276647]'}`}>{current.icon}{current.text}</span>
 }
 
-function ScoreSidebar({ scores, answers, members, teamNames, questions, totalQuestions, revealed, isAnswerCorrect = isCorrect, isAnswerReady, answerSize = 2, onAdd, onRemove }) {
+function ScoreSidebar({ scores, answers, members, teamNames, questions, totalQuestions, revealed, isAnswerCorrect = isCorrect, isAnswerReady, answerSize = 2, onAdjustScore, onAdd, onRemove }) {
   return <aside className="score-sidebar rounded-[24px] bg-[#173c2c] p-3 text-white shadow-xl" aria-label="แถบคะแนนด้านซ้าย">
     <div className="flex items-center justify-between px-2 py-2"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#acc8b9]">Score board</p><h2 className="text-lg font-black">พลังของทีม</h2></div><Trophy className="text-[#ffc45d]" size={26}/></div>
     <div className="score-team-grid mt-2 grid grid-cols-2 gap-2">
@@ -734,7 +747,11 @@ function ScoreSidebar({ scores, answers, members, teamNames, questions, totalQue
         const ready = isAnswerReady ? isAnswerReady(answers[index], questions[index]) : answers[index].filter(Number.isFinite).length === answerSize
         return <div key={team.name} className="rounded-2xl p-3 text-[#1d2922]" style={{ backgroundColor: team.pale }}>
           <div className="flex items-center gap-2"><span className="text-3xl" role="img">{team.animal}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-black" style={{ color: team.color }}>{teamNames[index]}</p><p className="text-[11px] font-bold text-[#657068]">{revealed ? (correct ? '+1 พลัง!' : 'ไม่ได้แต้ม') : (ready ? 'เลือกแล้ว ✓' : 'กำลังคิด')}</p></div><strong className="text-3xl font-black" style={{ color: team.color }}>{scores[index]}</strong></div>
-          <div className="mt-2 h-3 overflow-hidden rounded-full bg-white/80"><div className="h-full rounded-full transition-all duration-500" style={{ width: `${scores[index] / totalQuestions * 100}%`, backgroundColor: team.color }}/></div>
+          <div className="mt-2 h-3 overflow-hidden rounded-full bg-white/80"><div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, scores[index] / totalQuestions * 100)}%`, backgroundColor: team.color }}/></div>
+          <div className="mt-2 grid grid-cols-2 gap-2" aria-label={`ปรับคะแนน ${teamNames[index]}`}>
+            <button type="button" onClick={() => onAdjustScore(index, -1)} disabled={scores[index] <= 0} className="min-h-9 rounded-lg border-2 border-white bg-white/70 text-lg font-black text-[#9a4935] shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-35" aria-label={`ลดคะแนน ${teamNames[index]} 1 คะแนน`}>− คะแนน</button>
+            <button type="button" onClick={() => onAdjustScore(index, 1)} className="min-h-9 rounded-lg border-2 border-white bg-white text-lg font-black shadow-sm transition hover:brightness-105" style={{ color: team.color }} aria-label={`เพิ่มคะแนน ${teamNames[index]} 1 คะแนน`}>+ คะแนน</button>
+          </div>
           <div className="mt-2 space-y-1">
             {members[index].map((member) => <div key={member.id} className="group flex items-center gap-1.5 rounded-lg bg-white/65 px-2 py-1 text-xs font-bold"><span className="text-base">{member.emoji}</span><span className="min-w-0 flex-1 truncate">{member.name}</span><span className="font-black" style={{ color: team.color }}>{scores[index]}</span><button onClick={() => onRemove(index, member.id)} className="ml-1 hidden text-[#9a5b55] group-hover:block" aria-label={`ลบ ${member.name}`}><Trash2 size={12}/></button></div>)}
           </div>
@@ -858,7 +875,7 @@ function resultText(answers, questions, teamNames) {
 }
 
 function ConfirmReset({ onCancel, onConfirm }) {
-  return <div className="fixed inset-0 z-20 grid place-items-center bg-[#17231d]/60 p-4 backdrop-blur-sm"><div className="w-full max-w-sm rounded-[28px] bg-white p-6 text-center shadow-2xl"><RotateCcw className="mx-auto text-[#d76824]" size={38}/><h2 className="mt-3 text-2xl font-black">เริ่มเกมใหม่?</h2><p className="mt-2 text-[#69716c]">คะแนนทั้งหมดจะถูกล้าง</p><div className="mt-5 grid grid-cols-2 gap-3"><button onClick={onCancel} className="min-h-12 rounded-xl bg-[#eeeae1] font-bold">ยกเลิก</button><button onClick={onConfirm} className="min-h-12 rounded-xl bg-[#d85e35] font-bold text-white">เริ่มใหม่</button></div></div></div>
+  return <div className="fixed inset-0 z-20 grid place-items-center bg-[#17231d]/60 p-4 backdrop-blur-sm"><div className="w-full max-w-sm rounded-[28px] bg-white p-6 text-center shadow-2xl"><RotateCcw className="mx-auto text-[#d76824]" size={38}/><h2 className="mt-3 text-2xl font-black">รีเซตคะแนนทั้งหมด?</h2><p className="mt-2 text-[#69716c]">คะแนนของทุกทีมในทุกกิจกรรมจะกลับเป็น 0 แต่โจทย์ปัจจุบันยังอยู่เหมือนเดิม</p><div className="mt-5 grid grid-cols-2 gap-3"><button onClick={onCancel} className="min-h-12 rounded-xl bg-[#eeeae1] font-bold">ยกเลิก</button><button onClick={onConfirm} className="min-h-12 rounded-xl bg-[#d85e35] font-bold text-white">รีเซตคะแนน</button></div></div></div>
 }
 
 function Results({ scores, members, teamNames, totalQuestions, onReset, onLeave, activityName = 'คู่คูณชวนคิด' }) {
