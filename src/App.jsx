@@ -52,6 +52,7 @@ export default function App() {
   const closeSession = () => {
     localStorage.removeItem(CLASSROOM_SESSION_KEY)
     setSession(null)
+    setHasEntered(true)
   }
   if (session?.role === 'teacher') return <TeacherGame classroom={session} onLeaveRoom={closeSession}/>
   if (session?.role === 'student') return <StudentRoom session={session} onLeaveRoom={closeSession}/>
@@ -451,10 +452,10 @@ function TeacherGame({ classroom, onLeaveRoom }) {
   }
 
   if (!hydrated) return <main className="paper-grid grid min-h-screen place-items-center"><div className="text-center text-[#193b2b]"><LoaderCircle className="mx-auto animate-spin" size={44}/><p className="mt-3 font-black">กำลังโหลดห้องเรียน…</p></div></main>
-  if (activity === 'intro' && introFinished) return <Results scores={introScores} members={members} teamNames={teamNames} totalQuestions={DISTRIBUTIVE_QUESTIONS.length} onReset={resetIntro} activityName="แจกแจงให้แจ่ม" />
-  if (activity === 'pairs' && finished) return <Results scores={scores} members={members} teamNames={teamNames} totalQuestions={totalQuestions} onReset={reset} />
-  if (activity === 'guided' && guidedFinished) return <Results scores={guidedScores} members={members} teamNames={teamNames} totalQuestions={GUIDED_QUESTION_COUNT} onReset={resetGuided} activityName="คู่คิดพิชิตวงเล็บ" />
-  if (activity === 'factor' && factorFinished) return <Results scores={factorScores} members={members} teamNames={teamNames} totalQuestions={FACTOR_QUESTIONS.length} onReset={resetFactor} activityName="นักสืบตัวประกอบ" />
+  if (activity === 'intro' && introFinished) return <Results scores={introScores} members={members} teamNames={teamNames} totalQuestions={DISTRIBUTIVE_QUESTIONS.length} onReset={resetIntro} onLeave={onLeaveRoom} activityName="แจกแจงให้แจ่ม" />
+  if (activity === 'pairs' && finished) return <Results scores={scores} members={members} teamNames={teamNames} totalQuestions={totalQuestions} onReset={reset} onLeave={onLeaveRoom} />
+  if (activity === 'guided' && guidedFinished) return <Results scores={guidedScores} members={members} teamNames={teamNames} totalQuestions={GUIDED_QUESTION_COUNT} onReset={resetGuided} onLeave={onLeaveRoom} activityName="คู่คิดพิชิตวงเล็บ" />
+  if (activity === 'factor' && factorFinished) return <Results scores={factorScores} members={members} teamNames={teamNames} totalQuestions={FACTOR_QUESTIONS.length} onReset={resetFactor} onLeave={onLeaveRoom} activityName="นักสืบตัวประกอบ" />
 
   const activeScores = activity === 'intro' ? introScores : activity === 'factor' ? factorScores : activity === 'guided' ? guidedScores : scores
   const activeAnswers = activity === 'intro' ? introAnswers : activity === 'factor' ? factorAnswers : activity === 'guided' ? guidedAnswers : answers
@@ -477,6 +478,7 @@ function TeacherGame({ classroom, onLeaveRoom }) {
         <header className="mb-3 flex min-h-12 flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3"><div className={`grid size-10 place-items-center rounded-xl text-xl font-black text-white ${activity === 'intro' ? 'bg-[#6d4317]' : activity === 'factor' ? 'bg-[#30265f]' : activity === 'guided' ? 'bg-[#174c63]' : 'bg-[#193b2b]'}`}>{activityIcon}</div><div><h1 className="text-xl font-black text-[#193b2b]">{activityTitle}</h1><p className="text-xs font-bold text-[#6d756f]">ทุกกลุ่มเลือกพร้อมกัน · ครูเฉลยครั้งเดียว</p></div></div>
           <div className="flex flex-wrap justify-end gap-2">
+            {!classroom && <button onClick={onLeaveRoom} className="flex min-h-10 items-center gap-2 rounded-xl border border-[#d8d2c5] bg-white px-3 text-sm font-bold text-[#8e4b3c]"><ArrowLeft size={16}/> กลับหน้าสร้างห้อง</button>}
             <SaveStatus status={saveStatus}/>
             <div className="flex rounded-xl bg-white p-1 shadow-sm" aria-label="เลือกแบบฝึก">
               {[['intro', '1 แจกแจง'], ['pairs', '1.1 คู่คูณ'], ['guided', '1.2 คู่คิด'], ['factor', '2 นักสืบ']].map(([value, label]) => <button key={value} onClick={() => chooseActivity(value)} className={`min-h-8 rounded-lg px-2.5 text-xs font-black transition ${activity === value ? 'bg-[#ffd05a] text-[#473510]' : 'text-[#647069] hover:bg-[#f4f1e9]'}`}>{label}</button>)}
@@ -845,7 +847,7 @@ function ConfirmReset({ onCancel, onConfirm }) {
   return <div className="fixed inset-0 z-20 grid place-items-center bg-[#17231d]/60 p-4 backdrop-blur-sm"><div className="w-full max-w-sm rounded-[28px] bg-white p-6 text-center shadow-2xl"><RotateCcw className="mx-auto text-[#d76824]" size={38}/><h2 className="mt-3 text-2xl font-black">เริ่มเกมใหม่?</h2><p className="mt-2 text-[#69716c]">คะแนนทั้งหมดจะถูกล้าง</p><div className="mt-5 grid grid-cols-2 gap-3"><button onClick={onCancel} className="min-h-12 rounded-xl bg-[#eeeae1] font-bold">ยกเลิก</button><button onClick={onConfirm} className="min-h-12 rounded-xl bg-[#d85e35] font-bold text-white">เริ่มใหม่</button></div></div></div>
 }
 
-function Results({ scores, members, teamNames, totalQuestions, onReset, activityName = 'คู่คูณชวนคิด' }) {
+function Results({ scores, members, teamNames, totalQuestions, onReset, onLeave, activityName = 'คู่คูณชวนคิด' }) {
   const top = Math.max(...scores)
   const winnerIndexes = TEAMS.map((_, index) => index).filter((index) => scores[index] === top)
   return <main className="paper-grid grid min-h-screen place-items-center p-5">
@@ -853,7 +855,10 @@ function Results({ scores, members, teamNames, totalQuestions, onReset, activity
       <Trophy className="mx-auto text-[#d88b20]" size={64}/><p className="mt-3 font-black text-[#a76c1d]">{activityName} · จบครบ {totalQuestions} ข้อ</p><h1 className="text-5xl font-black text-[#193b2b]">เก่งมากทุกทีม!</h1>
       <p className="mt-2 text-lg font-bold text-[#647069]">ผู้ชนะคือ {winnerIndexes.map((index) => `${TEAMS[index].animal} ${teamNames[index]}`).join(' และ ')} · {top} คะแนน</p>
       <div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">{TEAMS.map((team, index) => <div key={team.name} className="rounded-3xl border-2 p-5" style={{ backgroundColor: team.pale, borderColor: team.color }}><div className="text-5xl">{team.animal}</div><h2 className="mt-2 font-black" style={{ color: team.color }}>{teamNames[index]}</h2><p className="text-4xl font-black" style={{ color: team.color }}>{scores[index]}</p><div className="mt-3 space-y-1">{members[index].map((member) => <div key={member.id} className="flex items-center rounded-lg bg-white/70 px-2 py-1 text-xs font-bold"><span className="mr-1">{member.emoji}</span><span className="flex-1 truncate text-left">{member.name}</span><strong style={{ color: team.color }}>{scores[index]}</strong></div>)}</div></div>)}</div>
-      <button onClick={onReset} className="mt-7 inline-flex min-h-14 items-center gap-2 rounded-2xl bg-[#193b2b] px-8 text-lg font-black text-white"><RotateCcw/> เล่นอีกครั้ง</button>
+      <div className="mt-7 flex flex-wrap justify-center gap-3">
+        <button onClick={onLeave} className="inline-flex min-h-14 items-center gap-2 rounded-2xl border-2 border-[#cfc8bb] bg-white px-6 text-lg font-black text-[#59645e]"><ArrowLeft/> กลับหน้าสร้างห้อง</button>
+        <button onClick={onReset} className="inline-flex min-h-14 items-center gap-2 rounded-2xl bg-[#193b2b] px-8 text-lg font-black text-white"><RotateCcw/> เล่นอีกครั้ง</button>
+      </div>
     </div>
   </main>
 }
