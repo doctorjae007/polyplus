@@ -12,6 +12,16 @@ export const DISTRIBUTIVE_QUESTIONS = [
   { a: 10, b: 2, common: 2, innerA: 5, innerB: 1 },
   { a: 8, b: 2, common: 2, innerA: 4, innerB: 1 },
   { a: 12, b: -18, common: 6, innerA: 2, innerB: -3 },
+  { a: 9, b: 27, common: 9, innerA: 1, innerB: 3 },
+  { a: 15, b: 20, common: 5, innerA: 3, innerB: 4 },
+  { a: 14, b: -35, common: 7, innerA: 2, innerB: -5 },
+  { a: 18, b: 12, common: 6, innerA: 3, innerB: 2 },
+  { a: 16, b: -24, common: 8, innerA: 2, innerB: -3 },
+  { a: 21, b: 14, common: 7, innerA: 3, innerB: 2 },
+  { a: 24, b: -32, common: 8, innerA: 3, innerB: -4 },
+  { a: 27, b: 9, common: 9, innerA: 3, innerB: 1 },
+  { a: 20, b: -30, common: 10, innerA: 2, innerB: -3 },
+  { a: 25, b: 15, common: 5, innerA: 5, innerB: 3 },
 ]
 
 const expectedTokens = (question) => [
@@ -36,7 +46,7 @@ const choicesFor = (question) => {
   return ['x', ...new Set([...required, ...distractors.slice(0, 5)])]
 }
 
-export function DistributivePlayArea({ teams, teamNames, questions, index, answers, revealed, onSelect, onReveal, onNext, hideControls = false }) {
+export function DistributivePlayArea({ teams, teamNames, questions, index, totalQuestions = DISTRIBUTIVE_QUESTIONS.length, answers, revealed, onSelect, onReveal, onNext, hideControls = false }) {
   const allReady = answers.every((answer, teamIndex) => isDistributiveReady(answer, questions[teamIndex]))
   const winners = teams.map((_, teamIndex) => teamIndex)
     .filter((teamIndex) => isDistributiveCorrect(answers[teamIndex], questions[teamIndex]))
@@ -45,7 +55,7 @@ export function DistributivePlayArea({ teams, teamNames, questions, index, answe
   return <>
     <section className="mb-3 flex min-h-[86px] items-center gap-4 rounded-[24px] bg-[#6d4317] px-5 py-3 text-white shadow-lg">
       <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#ffd27a] text-2xl font-black text-[#54320e]">⇄</div>
-      <div className="min-w-0 flex-1"><p className="text-xs font-black text-[#f3d8ad]">ชุดกิจกรรมที่ 1 · ข้อ {index + 1}/{DISTRIBUTIVE_QUESTIONS.length}</p><h2 className="text-xl font-black">ดึงตัวประกอบร่วม โดยใช้สมบัติการแจกแจง</h2><p className="text-sm font-bold text-[#f7e8cf]">เติมตัวเลขและ x ในช่องว่างให้ได้นิพจน์ที่ถูกต้อง</p></div>
+      <div className="min-w-0 flex-1"><p className="text-xs font-black text-[#f3d8ad]">ชุดกิจกรรมที่ 1 · ข้อ {index + 1}/{totalQuestions}</p><h2 className="text-xl font-black">ดึงตัวประกอบร่วม โดยใช้สมบัติการแจกแจง</h2><p className="text-sm font-bold text-[#f7e8cf]">เติมตัวเลขและ x ในช่องว่างให้ได้นิพจน์ที่ถูกต้อง</p></div>
     </section>
 
     <section className="team-board-grid grid gap-3" aria-label="คำตอบสมบัติการแจกแจงของทั้งสี่กลุ่ม">
