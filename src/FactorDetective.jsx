@@ -11,30 +11,48 @@ const buildQuestions = (questions) => questions.map((question) => ({
 export const POSITIVE_FACTOR_QUESTIONS = buildQuestions([
   { p: 1, q: 1, r: 1, s: 5 },
   { p: 1, q: 1, r: 2, s: 3 },
-  { p: 2, q: 1, r: 1, s: 3 },
-  { p: 2, q: 1, r: 2, s: 3 },
-  { p: 2, q: 3, r: 1, s: 2 },
-  { p: 3, q: 1, r: 1, s: 2 },
-  { p: 3, q: 2, r: 1, s: 3 },
-  { p: 4, q: 1, r: 1, s: 2 },
-  { p: 2, q: 2, r: 1, s: 3 },
-  { p: 3, q: 2, r: 2, s: 3 },
+  { p: 1, q: 1, r: 1, s: 2 },
+  { p: 1, q: 1, r: 1, s: 3 },
+  { p: 1, q: 1, r: 1, s: 4 },
+  { p: 1, q: 1, r: 1, s: 6 },
+  { p: 1, q: 1, r: 1, s: 7 },
+  { p: 1, q: 1, r: 2, s: 2 },
+  { p: 1, q: 1, r: 2, s: 4 },
+  { p: 1, q: 1, r: 2, s: 5 },
+  { p: 1, q: 1, r: 2, s: 6 },
+  { p: 1, q: 1, r: 2, s: 7 },
+  { p: 1, q: 1, r: 3, s: 3 },
+  { p: 1, q: 1, r: 3, s: 4 },
+  { p: 1, q: 1, r: 3, s: 5 },
+  { p: 1, q: 1, r: 3, s: 6 },
+  { p: 1, q: 1, r: 3, s: 7 },
+  { p: 1, q: 1, r: 4, s: 4 },
+  { p: 1, q: 1, r: 4, s: 5 },
+  { p: 1, q: 1, r: 5, s: 6 },
 ])
 
 export const MIXED_FACTOR_QUESTIONS = buildQuestions([
   { p: 1, q: 1, r: -3, s: 5 },
   { p: 1, q: 1, r: 2, s: 3 },
   { p: 1, q: 1, r: -1, s: -4 },
-  { p: 2, q: 1, r: 1, s: 3 },
-  { p: 2, q: 1, r: -1, s: 4 },
-  { p: 3, q: 1, r: 2, s: -1 },
-  { p: 2, q: 3, r: 1, s: 2 },
-  { p: 2, q: 3, r: -1, s: -2 },
-  { p: 3, q: 2, r: -2, s: 1 },
-  { p: 4, q: 1, r: -1, s: 2 },
+  { p: 1, q: 1, r: -2, s: 6 },
+  { p: 1, q: 1, r: -1, s: 4 },
+  { p: 1, q: 1, r: 2, s: -1 },
+  { p: 1, q: 1, r: -1, s: -2 },
+  { p: 1, q: 1, r: -2, s: -3 },
+  { p: 1, q: 1, r: -2, s: 4 },
+  { p: 1, q: 1, r: -4, s: 6 },
+  { p: 1, q: 1, r: 1, s: 5 },
+  { p: 1, q: 1, r: -3, s: -5 },
+  { p: 1, q: 1, r: -5, s: 2 },
+  { p: 1, q: 1, r: -6, s: 3 },
+  { p: 1, q: 1, r: -2, s: 7 },
+  { p: 1, q: 1, r: -7, s: 4 },
+  { p: 1, q: 1, r: 3, s: 4 },
+  { p: 1, q: 1, r: -4, s: -1 },
+  { p: 1, q: 1, r: -5, s: -2 },
+  { p: 1, q: 1, r: -6, s: -3 },
 ])
-
-export const FACTOR_QUESTIONS = MIXED_FACTOR_QUESTIONS
 
 const POSITIVE_CHOICES = [1, 2, 3, 4, 5, 6, 7]
 const MIXED_CHOICES = [-7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7]
@@ -57,7 +75,7 @@ const candidateAnswer = (answer) => filled(answer)
   ? `${linearFactor(answer[0], answer[2])}${linearFactor(answer[1], answer[3])}`
   : '(□x □)(□x □)'
 
-export function FactorPlayArea({ teams, teamNames, questions, index, answers, revealed, numberMode, onSelect, onReveal, onNext, hideControls = false }) {
+export function FactorPlayArea({ teams, teamNames, questions, index, totalQuestions = 10, answers, revealed, numberMode, onSelect, onReveal, onNext, hideControls = false }) {
   const allReady = answers.every(filled)
   const winners = teams
     .map((_, teamIndex) => teamIndex)
@@ -71,6 +89,7 @@ export function FactorPlayArea({ teams, teamNames, questions, index, answers, re
         key={team.name}
         team={{ ...team, name: teamNames[teamIndex] }}
         questionIndex={index}
+        totalQuestions={totalQuestions}
         question={questions[teamIndex]}
         choices={choices}
         answer={answers[teamIndex]}
@@ -92,7 +111,7 @@ export function FactorPlayArea({ teams, teamNames, questions, index, answers, re
   </>
 }
 
-function FactorTeamCard({ team, questionIndex, question, choices, answer, revealed, onSelect }) {
+function FactorTeamCard({ team, questionIndex, totalQuestions, question, choices, answer, revealed, onSelect }) {
   const [activeSlot, setActiveSlot] = useState(0)
   const arrowMarkerId = useId().replaceAll(':', '')
   const ready = filled(answer)
@@ -121,7 +140,7 @@ function FactorTeamCard({ team, questionIndex, question, choices, answer, reveal
     <div className="mb-2 flex items-center gap-2">
       <div className="flex min-w-0 items-center gap-2"><span className="text-2xl">{team.animal}</span><h3 className="truncate text-lg font-black" style={{ color: team.color }}>{team.name}</h3></div>
       <div className="ml-1 flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl bg-white/80 px-3 py-1.5 shadow-sm">
-        <span className="shrink-0 text-[10px] font-black text-[#777083]">ข้อ {questionIndex + 1}/10</span>
+        <span className="shrink-0 text-[10px] font-black text-[#777083]">ข้อ {questionIndex + 1}/{totalQuestions}</span>
         <strong className="truncate text-xl font-black text-[#30265f]">{polynomial(question)}</strong>
         {revealed && <span className="hidden shrink-0 rounded-lg bg-[#fff0b9] px-2 py-1 text-xs font-black text-[#5a4311] xl:inline">เฉลย {linearFactor(question.p, question.r)}{linearFactor(question.q, question.s)}</span>}
       </div>

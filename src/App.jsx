@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronRight, Cloud, CloudOff, Copy, Eye, GraduationCap, LoaderCircle, LogOut, Pause, Play, Plus, RotateCcw, Settings, Smartphone, Sparkles, Trash2, Trophy, UserPlus, Users, Wifi } from 'lucide-react'
-import { FACTOR_QUESTIONS, MIXED_FACTOR_QUESTIONS, POSITIVE_FACTOR_QUESTIONS, FactorPlayArea, isFactorCorrect } from './FactorDetective'
+import { MIXED_FACTOR_QUESTIONS, POSITIVE_FACTOR_QUESTIONS, FactorPlayArea, isFactorCorrect } from './FactorDetective'
 import { GUIDED_QUESTION_COUNT, MIXED_GUIDED_QUESTIONS, POSITIVE_GUIDED_QUESTIONS, GuidedPlayArea, isGuidedCorrect } from './GuidedFactor'
 import { DISTRIBUTIVE_QUESTIONS, DistributivePlayArea, blankDistributiveAnswers, isDistributiveCorrect, isDistributiveReady } from './DistributiveIntro'
 import { FeedbackEffects, playFeedbackSound } from './FeedbackEffects'
@@ -106,6 +106,7 @@ function TeacherGame({ classroom, onLeaveRoom }) {
   const [factorScores, setFactorScores] = useState(() => TEAMS.map(() => 0))
   const [factorGameMode, setFactorGameMode] = useState('same')
   const [factorNumberMode, setFactorNumberMode] = useState('mixed')
+  const [factorTotalQuestions, setFactorTotalQuestions] = useState(10)
   const [factorRevealed, setFactorRevealed] = useState(false)
   const [factorFinished, setFactorFinished] = useState(false)
   const [guidedQuestionIndex, setGuidedQuestionIndex] = useState(0)
@@ -164,16 +165,19 @@ function TeacherGame({ classroom, onLeaveRoom }) {
       setIntroTotalQuestions(savedIntroTotal)
       setIntroRevealed(invalidIntroIndex ? false : Boolean(state.introRevealed))
       setIntroFinished(invalidIntroIndex ? false : Boolean(state.introFinished))
-      setFactorQuestionIndex((state.factorQuestionIndex ?? 0) < FACTOR_QUESTIONS.length ? (state.factorQuestionIndex ?? 0) : 0)
+      const savedFactorTotal = QUESTION_COUNT_OPTIONS.includes(state.factorTotalQuestions) ? state.factorTotalQuestions : 10
+      const invalidFactorIndex = (state.factorQuestionIndex ?? 0) >= savedFactorTotal
+      setFactorQuestionIndex(invalidFactorIndex ? 0 : (state.factorQuestionIndex ?? 0))
       const savedFactorAnswers = Array.isArray(state.factorAnswers) && state.factorAnswers.length === TEAMS.length && state.factorAnswers.every((answer) => Array.isArray(answer) && answer.length === 4)
         ? state.factorAnswers
         : blankFactorAnswers()
-      setFactorAnswers(savedFactorAnswers)
+      setFactorAnswers(invalidFactorIndex ? blankFactorAnswers() : savedFactorAnswers)
       setFactorScores(state.factorScores ?? TEAMS.map(() => 0))
       setFactorGameMode(state.factorGameMode === 'different' ? 'different' : 'same')
       setFactorNumberMode(state.factorNumberMode === 'positive' ? 'positive' : 'mixed')
-      setFactorRevealed(Boolean(state.factorRevealed))
-      setFactorFinished(Boolean(state.factorFinished))
+      setFactorTotalQuestions(savedFactorTotal)
+      setFactorRevealed(invalidFactorIndex ? false : Boolean(state.factorRevealed))
+      setFactorFinished(invalidFactorIndex ? false : Boolean(state.factorFinished))
       setGuidedQuestionIndex((state.guidedQuestionIndex ?? 0) < GUIDED_QUESTION_COUNT ? (state.guidedQuestionIndex ?? 0) : 0)
       const savedGuidedAnswers = Array.isArray(state.guidedAnswers) && state.guidedAnswers.length === TEAMS.length && state.guidedAnswers.every((answer) => Array.isArray(answer) && answer.length === 2) ? state.guidedAnswers : blankGuidedAnswers()
       setGuidedAnswers(savedGuidedAnswers)
@@ -218,7 +222,7 @@ function TeacherGame({ classroom, onLeaveRoom }) {
     if (!hydrated) return
     const revision = ++localRevision.current
     savePending.current = true
-    const state = { roomStatus, activity, introQuestionIndex, introAnswers, introScores, introGameMode, introTotalQuestions, introRevealed, introFinished, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorGameMode, factorNumberMode, factorRevealed, factorFinished, guidedQuestionIndex, guidedAnswers, guidedScores, guidedGameMode, guidedNumberMode, guidedRevealed, guidedFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished }
+    const state = { roomStatus, activity, introQuestionIndex, introAnswers, introScores, introGameMode, introTotalQuestions, introRevealed, introFinished, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorGameMode, factorNumberMode, factorTotalQuestions, factorRevealed, factorFinished, guidedQuestionIndex, guidedAnswers, guidedScores, guidedGameMode, guidedNumberMode, guidedRevealed, guidedFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished }
     if (!classroom) localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
     setSaveStatus('saving')
     const timer = setTimeout(async () => {
@@ -230,7 +234,7 @@ function TeacherGame({ classroom, onLeaveRoom }) {
       finally { if (localRevision.current === revision) savePending.current = false }
     }, 450)
     return () => clearTimeout(timer)
-  }, [hydrated, roomStatus, activity, introQuestionIndex, introAnswers, introScores, introGameMode, introTotalQuestions, introRevealed, introFinished, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorGameMode, factorNumberMode, factorRevealed, factorFinished, guidedQuestionIndex, guidedAnswers, guidedScores, guidedGameMode, guidedNumberMode, guidedRevealed, guidedFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished, classroom?.code, classroom?.token])
+  }, [hydrated, roomStatus, activity, introQuestionIndex, introAnswers, introScores, introGameMode, introTotalQuestions, introRevealed, introFinished, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorGameMode, factorNumberMode, factorTotalQuestions, factorRevealed, factorFinished, guidedQuestionIndex, guidedAnswers, guidedScores, guidedGameMode, guidedNumberMode, guidedRevealed, guidedFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished, classroom?.code, classroom?.token])
 
   useEffect(() => {
     if (!hydrated || !classroom) return undefined
@@ -338,7 +342,7 @@ function TeacherGame({ classroom, onLeaveRoom }) {
   }
 
   const nextFactorQuestion = () => {
-    if (factorQuestionIndex === FACTOR_QUESTIONS.length - 1) return setFactorFinished(true)
+    if (factorQuestionIndex === factorTotalQuestions - 1) return setFactorFinished(true)
     setFactorQuestionIndex((value) => value + 1)
     setFactorAnswers(blankFactorAnswers())
     setFactorRevealed(false)
@@ -390,15 +394,16 @@ function TeacherGame({ classroom, onLeaveRoom }) {
     setShowSettings(false)
   }
 
-  const applyFactorSettings = (names, mode, nextNumberMode) => {
+  const applyFactorSettings = (names, mode, nextNumberMode, nextTotalQuestions) => {
     setTeamNames(names.map((name, index) => name.trim() || TEAMS[index].name))
-    if (mode !== factorGameMode || nextNumberMode !== factorNumberMode) {
+    if (mode !== factorGameMode || nextNumberMode !== factorNumberMode || nextTotalQuestions !== factorTotalQuestions) {
       setFactorGameMode(mode)
       setFactorNumberMode(nextNumberMode)
+      setFactorTotalQuestions(nextTotalQuestions)
       setFactorAnswers(blankFactorAnswers())
       setFactorRevealed(false)
       if (factorRevealed) {
-        if (factorQuestionIndex >= FACTOR_QUESTIONS.length - 1) setFactorFinished(true)
+        if (factorQuestionIndex >= nextTotalQuestions - 1) setFactorFinished(true)
         else setFactorQuestionIndex((value) => value + 1)
       }
     }
@@ -474,12 +479,12 @@ function TeacherGame({ classroom, onLeaveRoom }) {
   if (activity === 'intro' && introFinished) return <Results scores={introScores} members={members} teamNames={teamNames} totalQuestions={introTotalQuestions} onReset={resetIntro} onLeave={onLeaveRoom} activityName="แจกแจงให้แจ่ม" />
   if (activity === 'pairs' && finished) return <Results scores={scores} members={members} teamNames={teamNames} totalQuestions={totalQuestions} onReset={reset} onLeave={onLeaveRoom} />
   if (activity === 'guided' && guidedFinished) return <Results scores={guidedScores} members={members} teamNames={teamNames} totalQuestions={GUIDED_QUESTION_COUNT} onReset={resetGuided} onLeave={onLeaveRoom} activityName="คู่คิดพิชิตวงเล็บ" />
-  if (activity === 'factor' && factorFinished) return <Results scores={factorScores} members={members} teamNames={teamNames} totalQuestions={FACTOR_QUESTIONS.length} onReset={resetFactor} onLeave={onLeaveRoom} activityName="นักสืบตัวประกอบ" />
+  if (activity === 'factor' && factorFinished) return <Results scores={factorScores} members={members} teamNames={teamNames} totalQuestions={factorTotalQuestions} onReset={resetFactor} onLeave={onLeaveRoom} activityName="นักสืบตัวประกอบ" />
 
   const activeScores = activity === 'intro' ? introScores : activity === 'factor' ? factorScores : activity === 'guided' ? guidedScores : scores
   const activeAnswers = activity === 'intro' ? introAnswers : activity === 'factor' ? factorAnswers : activity === 'guided' ? guidedAnswers : answers
   const activeQuestions = activity === 'intro' ? introTeamQuestions : activity === 'factor' ? factorTeamQuestions : activity === 'guided' ? guidedTeamQuestions : teamQuestions
-  const activeTotal = activity === 'intro' ? introTotalQuestions : activity === 'factor' ? FACTOR_QUESTIONS.length : activity === 'guided' ? GUIDED_QUESTION_COUNT : totalQuestions
+  const activeTotal = activity === 'intro' ? introTotalQuestions : activity === 'factor' ? factorTotalQuestions : activity === 'guided' ? GUIDED_QUESTION_COUNT : totalQuestions
   const activeRevealed = activity === 'intro' ? introRevealed : activity === 'factor' ? factorRevealed : activity === 'guided' ? guidedRevealed : revealed
   const activeCorrect = activity === 'intro' ? isDistributiveCorrect : activity === 'factor' ? isFactorCorrect : activity === 'guided' ? isGuidedCorrect : isCorrect
   const activeAnswerSize = activity === 'factor' ? 4 : 2
@@ -509,7 +514,7 @@ function TeacherGame({ classroom, onLeaveRoom }) {
         {activity === 'intro'
           ? <DistributivePlayArea teams={TEAMS} teamNames={teamNames} questions={introTeamQuestions} index={introQuestionIndex} totalQuestions={introTotalQuestions} answers={introAnswers} revealed={introRevealed} onSelect={selectIntroToken} onReveal={revealIntro} onNext={nextIntroQuestion}/>
           : activity === 'factor'
-          ? <FactorPlayArea teams={TEAMS} teamNames={teamNames} questions={factorTeamQuestions} index={factorQuestionIndex} answers={factorAnswers} revealed={factorRevealed} numberMode={factorNumberMode} onSelect={selectFactorNumber} onReveal={revealFactor} onNext={nextFactorQuestion}/>
+          ? <FactorPlayArea teams={TEAMS} teamNames={teamNames} questions={factorTeamQuestions} index={factorQuestionIndex} totalQuestions={factorTotalQuestions} answers={factorAnswers} revealed={factorRevealed} numberMode={factorNumberMode} onSelect={selectFactorNumber} onReveal={revealFactor} onNext={nextFactorQuestion}/>
           : activity === 'guided'
             ? <GuidedPlayArea teams={TEAMS} teamNames={teamNames} questions={guidedTeamQuestions} index={guidedQuestionIndex} answers={guidedAnswers} revealed={guidedRevealed} numberMode={guidedNumberMode} onSelect={selectGuidedNumber} onReveal={revealGuided} onNext={nextGuidedQuestion}/>
           : <>
@@ -539,8 +544,8 @@ function TeacherGame({ classroom, onLeaveRoom }) {
           title={activity === 'intro' ? 'ตั้งค่าแจกแจงให้แจ่ม' : activity === 'factor' ? 'ตั้งค่านักสืบตัวประกอบ' : 'ตั้งค่าคู่คิดพิชิตวงเล็บ'}
           icon={activity === 'intro' ? '⇄' : activity === 'factor' ? '🔎' : '🧩'}
           showNumberMode={activity !== 'intro'}
-          showQuestionCount={activity === 'intro'}
-          totalQuestions={activity === 'intro' ? introTotalQuestions : undefined}
+          showQuestionCount={activity === 'intro' || activity === 'factor'}
+          totalQuestions={activity === 'intro' ? introTotalQuestions : activity === 'factor' ? factorTotalQuestions : undefined}
           onCancel={() => setShowSettings(false)}
           onApply={activity === 'intro' ? applyIntroSettings : activity === 'factor' ? applyFactorSettings : applyGuidedSettings}
         />)}
@@ -719,7 +724,7 @@ function StudentRoom({ session, onLeaveRoom }) {
         <div className="mb-3 flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm"><div><p className="text-xs font-black text-[#778078]">กำลังเล่น</p><h2 className="text-xl font-black text-[#193b2b]">{title}</h2></div><span className="rounded-full bg-[#e6f5ec] px-3 py-1 text-sm font-black text-[#20704a]">ข้อ {(questionIndex ?? 0) + 1}</span></div>
         {activity === 'intro' ? <DistributivePlayArea teams={[team]} teamNames={[team.name]} questions={[question]} index={state.introQuestionIndex ?? 0} totalQuestions={state.introTotalQuestions ?? 10} answers={[answer]} revealed={Boolean(revealedNow)} hideControls onSelect={(_, slot, value) => updateSlot(slot, value, introSize)}/>
           : activity === 'guided' ? <GuidedPlayArea teams={[team]} teamNames={[team.name]} questions={[question]} index={state.guidedQuestionIndex ?? 0} answers={[answer]} revealed={Boolean(revealedNow)} numberMode={state.guidedNumberMode ?? 'positive'} hideControls onSelect={(_, slot, value) => updateSlot(slot, value, 2)}/>
-            : activity === 'factor' ? <FactorPlayArea teams={[team]} teamNames={[team.name]} questions={[question]} index={state.factorQuestionIndex ?? 0} answers={[answer]} revealed={Boolean(revealedNow)} numberMode={state.factorNumberMode ?? 'mixed'} hideControls onSelect={(_, slot, value) => updateSlot(slot, value, 4)}/>
+            : activity === 'factor' ? <FactorPlayArea teams={[team]} teamNames={[team.name]} questions={[question]} index={state.factorQuestionIndex ?? 0} totalQuestions={state.factorTotalQuestions ?? 10} answers={[answer]} revealed={Boolean(revealedNow)} numberMode={state.factorNumberMode ?? 'mixed'} hideControls onSelect={(_, slot, value) => updateSlot(slot, value, 4)}/>
               : <TeamCard team={team} question={question} showQuestion integerMode={state.numberMode === 'integers'} answer={answer} choices={state.numberMode === 'integers' ? Array.from({ length: 13 }, (_, i) => i - 6) : Array.from({ length: 10 }, (_, i) => i + 1)} revealed={Boolean(revealedNow)} correct={Boolean(revealedNow) && isCorrect(answer, question)} onSelect={selectPair}/>}
         <p className="mt-3 rounded-2xl bg-white px-4 py-3 text-center font-black text-[#5f6c65]">{revealedNow ? 'ครูเฉลยแล้ว รอข้อถัดไป' : 'คำตอบของกลุ่มจะส่งให้ครูอัตโนมัติ'}</p>
       </>}
