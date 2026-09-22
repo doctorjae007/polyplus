@@ -596,21 +596,36 @@ function ClassroomHome({ onOpenSession }) {
     finally { setLoading(false) }
   }
 
-  return <main className="paper-grid grid min-h-screen place-items-center p-4">
-    <section className="w-full max-w-4xl overflow-hidden rounded-[32px] bg-white shadow-2xl">
-      <div className="bg-[#193b2b] px-6 py-7 text-white sm:px-10"><div className="flex items-center gap-4"><div className="grid size-14 place-items-center rounded-2xl bg-[#ffd05a] text-3xl">✦</div><div><p className="text-sm font-black text-[#b8d2c4]">FACTOR RALLY</p><h1 className="text-3xl font-black">ห้องเรียนแยกตัวประกอบ</h1></div></div></div>
-      {!room ? <div className="grid gap-5 p-6 sm:grid-cols-2 sm:p-10">
-        <div className="rounded-3xl border-2 border-[#cfe1d7] bg-[#edf8f1] p-6">
-          <GraduationCap className="text-[#1f6a48]" size={42}/><h2 className="mt-3 text-2xl font-black text-[#193b2b]">สำหรับครู</h2><p className="mt-1 font-bold text-[#607068]">สร้างห้อง เลือกกิจกรรม และควบคุมการเฉลยจากจอหลัก</p>
-          <button onClick={createRoom} disabled={loading} className="mt-6 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#193b2b] text-lg font-black text-white disabled:opacity-50"><Users/> {loading ? 'กำลังสร้างห้อง…' : 'สร้างห้องใหม่'}</button>
+  return <main className="classroom-home">
+    <section className="classroom-shell">
+      <header className="classroom-header">
+        <div className="classroom-brand-mark" aria-hidden="true">✦</div>
+        <div className="classroom-brand-copy"><p>FACTOR RALLY</p><h1>ห้องเรียนแยกตัวประกอบ</h1></div>
+        <span className="classroom-header-badge">Interactive classroom</span>
+      </header>
+      {!room ? <div className="classroom-content">
+        <div className="classroom-intro">
+          <span className="classroom-kicker">เริ่มต้นใช้งาน</span>
+          <h2>วันนี้คุณเข้าใช้งานในบทบาทไหน?</h2>
+          <p>สร้างห้องใหม่สำหรับจัดกิจกรรม หรือใส่รหัสเพื่อเข้าร่วมกับเพื่อนในชั้นเรียน</p>
         </div>
-        <form onSubmit={findRoom} className="rounded-3xl border-2 border-[#f0d8ad] bg-[#fff8e8] p-6">
-          <Smartphone className="text-[#9a5b18]" size={42}/><h2 className="mt-3 text-2xl font-black text-[#5a3915]">สำหรับนักเรียน</h2><p className="mt-1 font-bold text-[#796750]">ใส่รหัส 6 หลักที่ครูแสดงบนหน้าจอ</p>
-          <input inputMode="numeric" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" aria-label="รหัสห้อง 6 หลัก" className="mt-5 min-h-14 w-full rounded-2xl border-2 border-[#dfc28f] bg-white px-4 text-center text-3xl font-black tracking-[.3em] outline-none focus:border-[#9a5b18]"/>
-          <button disabled={loading} className="mt-3 min-h-14 w-full rounded-2xl bg-[#ef9940] text-lg font-black text-[#40250d] disabled:opacity-50">เข้าห้องเรียน</button>
-        </form>
-        <button onClick={() => onOpenSession({ role: 'solo' })} className="sm:col-span-2 text-sm font-black text-[#68736d] underline underline-offset-4">เล่นบนเครื่องเดียวแบบเดิม</button>
-        {error && <p className="sm:col-span-2 rounded-xl bg-[#fff0eb] px-4 py-3 text-center font-black text-[#a33b2f]">{error}</p>}
+        <div className="classroom-role-grid">
+          <div className="classroom-role-card teacher-role">
+            <div className="classroom-role-icon"><GraduationCap size={30}/></div>
+            <div><span className="classroom-role-label">TEACHER</span><h3>สำหรับครู</h3><p>สร้างห้อง เลือกกิจกรรม และควบคุมการเฉลยจากจอหลัก</p></div>
+            <button onClick={createRoom} disabled={loading} className="classroom-primary-button"><Users size={20}/> {loading ? 'กำลังสร้างห้อง…' : 'สร้างห้องใหม่'} <ArrowRight size={19}/></button>
+          </div>
+          <form onSubmit={findRoom} className="classroom-role-card student-role">
+            <div className="classroom-role-icon"><Smartphone size={28}/></div>
+            <div><span className="classroom-role-label">STUDENT</span><h3>สำหรับนักเรียน</h3><p>กรอกรหัสห้องเรียน 6 หลักที่ได้รับจากครู</p></div>
+            <div className="classroom-student-actions">
+              <label className="classroom-code-field"><span>รหัสห้องเรียน</span><input inputMode="numeric" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" aria-label="รหัสห้อง 6 หลัก"/></label>
+              <button disabled={loading} className="classroom-secondary-button">เข้าห้องเรียน <ArrowRight size={19}/></button>
+            </div>
+          </form>
+        </div>
+        <div className="classroom-solo-row"><span>หรือ</span><button onClick={() => onOpenSession({ role: 'solo' })}>เล่นบนเครื่องเดียว <ChevronRight size={16}/></button></div>
+        {error && <p className="classroom-error">{error}</p>}
       </div> : <div className="p-6 sm:p-10">
         <button onClick={() => { setRoom(null); setError('') }} className="flex items-center gap-1 font-black text-[#66736c]"><ArrowLeft size={18}/> เปลี่ยนรหัสห้อง</button>
         <div className="mt-4 text-center"><p className="text-sm font-black text-[#7a746b]">ห้อง {room.code}</p><h2 className="text-3xl font-black text-[#193b2b]">เลือกกลุ่มของคุณ</h2><p className="mt-1 font-bold text-[#6b746e]">หนึ่งมือถือประจำหนึ่งกลุ่ม</p></div>
