@@ -13,6 +13,8 @@ const token = () => crypto.randomUUID().replaceAll('-', '')
 const bearer = (request) => request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') ?? ''
 const roomCode = () => String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0')
 const answerKey = (activity) => ({ intro: 'introAnswers', pairs: 'answers', guided: 'guidedAnswers', factor: 'factorAnswers' })[activity]
+const defaultTeamNames = ['ทีมฟ้า', 'ทีมส้ม', 'ทีมเขียว', 'ทีมม่วง', 'ทีมชมพู', 'ทีมฟ้าคราม']
+const teamCountOf = (state) => Number.isInteger(state.teamCount) && state.teamCount >= 2 && state.teamCount <= 6 ? state.teamCount : 4
 
 const roomSummary = (row, teams) => {
   let state = {}
@@ -21,8 +23,12 @@ const roomSummary = (row, teams) => {
     code: row.code,
     status: state.roomStatus === 'playing' ? 'playing' : 'lobby',
     activity: state.activity ?? 'intro',
-    teamNames: Array.isArray(state.teamNames) ? state.teamNames : ['ทีมฟ้า', 'ทีมส้ม', 'ทีมเขียว', 'ทีมม่วง'],
-    occupiedTeams: teams.map((team) => team.team_index),
+    teamCount: teamCountOf(state),
+    teamNames: Array.isArray(state.teamNames) ? state.teamNames : defaultTeamNames,
+    occupiedTeams: [...new Set(teams.map((team) => team.team_index))],
+    members: Array.from({ length: teamCountOf(state) }, (_, teamIndex) => teams
+      .filter((player) => player.team_index === teamIndex)
+      .map((player) => ({ id: player.id, name: player.name, emoji: player.emoji }))),
     updatedAt: row.updated_at,
   }
 }
@@ -42,18 +48,21 @@ async function findRoom(env, code) {
 }
 
 async function listTeams(env, code) {
-  const result = await env.DB.prepare('SELECT team_index, player_token, device_id, updated_at FROM classroom_teams WHERE room_code = ? ORDER BY team_index').bind(code).all()
+  const result = await env.DB.prepare('SELECT id, team_index, player_token, device_id, name, emoji, updated_at FROM classroom_players WHERE room_code = ? ORDER BY team_index, updated_at').bind(code).all()
   return result.results ?? []
 }
 
-async function createRoom(env) {
+async function createRoom(request, env) {
+  const body = await readJson(request, 1000)
+  const teamCount = Number(body.teamCount)
+  if (!Number.isInteger(teamCount) || teamCount < 2 || teamCount > 6) return json({ error: 'Team count must be between 2 and 6' }, 400)
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const code = roomCode()
     const teacherToken = token()
     try {
       await env.DB.prepare(`INSERT INTO classroom_rooms (code, teacher_token, state, created_at, updated_at)
-        VALUES (?, ?, '{}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`).bind(code, teacherToken).run()
-      return json({ code, teacherToken }, 201)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`).bind(code, teacherToken, JSON.stringify({ teamCount })).run()
+      return json({ code, teacherToken, teamCount }, 201)
     } catch (error) {
       if (!String(error).toLowerCase().includes('unique')) throw error
     }
@@ -77,21 +86,27 @@ async function joinRoom(request, env, code) {
   if (!row) return json({ error: 'Room not found' }, 404)
   const body = await readJson(request, 5000)
   const teamIndex = Number(body.teamIndex)
+  const state = JSON.parse(row.state || '{}')
   const deviceId = typeof body.deviceId === 'string' ? body.deviceId.slice(0, 80) : ''
-  if (!Number.isInteger(teamIndex) || teamIndex < 0 || teamIndex > 3 || !deviceId) return json({ error: 'Invalid team selection' }, 400)
-  const existing = await env.DB.prepare('SELECT player_token, device_id FROM classroom_teams WHERE room_code = ? AND team_index = ?').bind(code, teamIndex).first()
-  if (existing && existing.device_id !== deviceId) return json({ error: 'Team is already occupied' }, 409)
-  if (existing) return json({ code, teamIndex, playerToken: existing.player_token })
+  const name = typeof body.name === 'string' ? body.name.trim().slice(0, 24) : ''
+  const emoji = typeof body.emoji === 'string' ? body.emoji.trim().slice(0, 16) : ''
+  if (!Number.isInteger(teamIndex) || teamIndex < 0 || teamIndex >= teamCountOf(state) || !deviceId || !name || !emoji) return json({ error: 'Invalid player profile or team selection' }, 400)
+  const existing = await env.DB.prepare('SELECT player_token, team_index FROM classroom_players WHERE room_code = ? AND device_id = ?').bind(code, deviceId).first()
+  if (existing) {
+    await env.DB.prepare('UPDATE classroom_players SET team_index = ?, name = ?, emoji = ?, updated_at = CURRENT_TIMESTAMP WHERE room_code = ? AND device_id = ?').bind(teamIndex, name, emoji, code, deviceId).run()
+    return json({ code, teamIndex, playerToken: existing.player_token, name, emoji })
+  }
+  const playerId = token()
   const playerToken = token()
-  await env.DB.prepare(`INSERT INTO classroom_teams (room_code, team_index, player_token, device_id, updated_at)
-    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`).bind(code, teamIndex, playerToken, deviceId).run()
-  return json({ code, teamIndex, playerToken }, 201)
+  await env.DB.prepare(`INSERT INTO classroom_players (id, room_code, team_index, player_token, device_id, name, emoji, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`).bind(playerId, code, teamIndex, playerToken, deviceId, name, emoji).run()
+  return json({ code, teamIndex, playerToken, name, emoji }, 201)
 }
 
 async function leaveRoom(request, env, code) {
   const auth = bearer(request)
   if (!auth) return json({ error: 'Unauthorized' }, 401)
-  await env.DB.prepare('DELETE FROM classroom_teams WHERE room_code = ? AND player_token = ?').bind(code, auth).run()
+  await env.DB.prepare('DELETE FROM classroom_players WHERE room_code = ? AND player_token = ?').bind(code, auth).run()
   return json({ ok: true })
 }
 
@@ -99,7 +114,15 @@ async function unlockTeam(request, env, code, teamIndex) {
   const row = await findRoom(env, code)
   if (!row) return json({ error: 'Room not found' }, 404)
   if (bearer(request) !== row.teacher_token) return json({ error: 'Unauthorized' }, 401)
-  await env.DB.prepare('DELETE FROM classroom_teams WHERE room_code = ? AND team_index = ?').bind(code, teamIndex).run()
+  await env.DB.prepare('DELETE FROM classroom_players WHERE room_code = ? AND team_index = ?').bind(code, teamIndex).run()
+  return json({ ok: true })
+}
+
+async function removePlayer(request, env, code, playerId) {
+  const row = await findRoom(env, code)
+  if (!row) return json({ error: 'Room not found' }, 404)
+  if (bearer(request) !== row.teacher_token) return json({ error: 'Unauthorized' }, 401)
+  await env.DB.prepare('DELETE FROM classroom_players WHERE room_code = ? AND id = ?').bind(code, playerId).run()
   return json({ ok: true })
 }
 
@@ -115,7 +138,7 @@ async function updateRoomState(request, env, code) {
 
 async function updateTeamAnswer(request, env, code) {
   const auth = bearer(request)
-  const player = await env.DB.prepare('SELECT team_index FROM classroom_teams WHERE room_code = ? AND player_token = ?').bind(code, auth).first()
+  const player = await env.DB.prepare('SELECT team_index FROM classroom_players WHERE room_code = ? AND player_token = ?').bind(code, auth).first()
   if (!player) return json({ error: 'Unauthorized' }, 401)
   const row = await findRoom(env, code)
   if (!row) return json({ error: 'Room not found' }, 404)
@@ -125,7 +148,8 @@ async function updateTeamAnswer(request, env, code) {
   if (!key || body.activity !== state.activity || state.roomStatus !== 'playing') return json({ error: 'Activity is not accepting answers' }, 409)
   if (!Array.isArray(body.answer) || body.answer.length > 8 || body.answer.some((value) => value !== null && value !== 'x' && !Number.isFinite(value))) return json({ error: 'Invalid answer' }, 400)
   if ((key === 'introAnswers' && state.introRevealed) || (key === 'answers' && state.revealed) || (key === 'guidedAnswers' && state.guidedRevealed) || (key === 'factorAnswers' && state.factorRevealed)) return json({ error: 'Answers are locked' }, 409)
-  const answers = Array.isArray(state[key]) && state[key].length === 4 ? state[key] : Array.from({ length: 4 }, () => [])
+  const teamCount = teamCountOf(state)
+  const answers = Array.isArray(state[key]) && state[key].length >= teamCount ? state[key] : Array.from({ length: teamCount }, () => [])
   answers[player.team_index] = body.answer
   state[key] = answers
   await env.DB.prepare('UPDATE classroom_rooms SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE code = ?').bind(JSON.stringify(state), code).run()
@@ -151,7 +175,7 @@ async function handleLegacyGameState(request, env) {
 async function handleApi(request, env, url) {
   if (!env.DB) return json({ error: 'Database binding is unavailable' }, 503)
   if (url.pathname === '/api/game-state') return handleLegacyGameState(request, env)
-  if (url.pathname === '/api/rooms' && request.method === 'POST') return createRoom(env)
+  if (url.pathname === '/api/rooms' && request.method === 'POST') return createRoom(request, env)
   const parts = url.pathname.split('/').filter(Boolean)
   if (parts[0] !== 'api' || parts[1] !== 'rooms' || !/^\d{6}$/.test(parts[2] ?? '')) return json({ error: 'Not found' }, 404)
   const code = parts[2]
@@ -160,6 +184,7 @@ async function handleApi(request, env, url) {
   if (parts[3] === 'join' && request.method === 'POST') return joinRoom(request, env, code)
   if (parts[3] === 'leave' && request.method === 'POST') return leaveRoom(request, env, code)
   if (parts[3] === 'answer' && request.method === 'PUT') return updateTeamAnswer(request, env, code)
+  if (parts[3] === 'players' && /^[a-f0-9]{32}$/.test(parts[4] ?? '') && request.method === 'DELETE') return removePlayer(request, env, code, parts[4])
   if (parts[3] === 'teams' && /^\d$/.test(parts[4] ?? '') && request.method === 'DELETE') return unlockTeam(request, env, code, Number(parts[4]))
   return json({ error: 'Not found' }, 404)
 }

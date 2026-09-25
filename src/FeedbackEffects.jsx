@@ -52,7 +52,7 @@ export function FeedbackEffects({ feedback, teams, teamNames, onDone }) {
       '--delay': `${(pieceIndex % 6) * 35}ms`,
       '--spin': `${180 + (pieceIndex % 5) * 90}deg`,
       '--spin-end': `${360 + (pieceIndex % 5) * 180}deg`,
-      left: `${28 + teamIndex * 17}%`,
+      left: `${((teamIndex + 1) / (teams.length + 1)) * 100}%`,
       backgroundColor: COLORS[(pieceIndex + teamIndex) % COLORS.length],
     }}/>))}
     {wrongTeams.length > 0 && <div className="wrong-flash"/>}

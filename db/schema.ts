@@ -12,12 +12,15 @@ export const classroomRoomsSchema = `CREATE TABLE classroom_rooms (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 )`
 
-export const classroomTeamsSchema = `CREATE TABLE classroom_teams (
+export const classroomTeamsSchema = `CREATE TABLE classroom_players (
+  id TEXT PRIMARY KEY NOT NULL,
   room_code TEXT NOT NULL,
-  team_index INTEGER NOT NULL CHECK (team_index BETWEEN 0 AND 3),
+  team_index INTEGER NOT NULL CHECK (team_index BETWEEN 0 AND 5),
   player_token TEXT NOT NULL UNIQUE,
   device_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  emoji TEXT NOT NULL,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (room_code, team_index),
+  UNIQUE (room_code, device_id),
   FOREIGN KEY (room_code) REFERENCES classroom_rooms(code) ON DELETE CASCADE
 )`

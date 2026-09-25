@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronRight, Cloud, CloudOff, Copy, Eye, GraduationCap, LoaderCircle, LogOut, Pause, Play, Plus, RotateCcw, Settings, Smartphone, Sparkles, Trash2, Trophy, UserPlus, Users, Wifi } from 'lucide-react'
 import { MIXED_FACTOR_QUESTIONS, POSITIVE_FACTOR_QUESTIONS, FactorPlayArea, isFactorCorrect } from './FactorDetective'
 import { GUIDED_QUESTION_COUNT, MIXED_GUIDED_QUESTIONS, POSITIVE_GUIDED_QUESTIONS, GuidedPlayArea, isGuidedCorrect } from './GuidedFactor'
-import { DISTRIBUTIVE_QUESTIONS, DistributivePlayArea, blankDistributiveAnswers, isDistributiveCorrect, isDistributiveReady } from './DistributiveIntro'
+import { DISTRIBUTIVE_QUESTIONS, DistributivePlayArea, isDistributiveCorrect, isDistributiveReady } from './DistributiveIntro'
 import { FeedbackEffects, playFeedbackSound } from './FeedbackEffects'
 
 const TEAMS = [
@@ -10,6 +10,8 @@ const TEAMS = [
   { name: 'ทีมส้ม', animal: '🦊', color: '#e76f2e', pale: '#ffe5d6' },
   { name: 'ทีมเขียว', animal: '🐢', color: '#249263', pale: '#d9f3e5' },
   { name: 'ทีมม่วง', animal: '🦄', color: '#8459c4', pale: '#eadffc' },
+  { name: 'ทีมชมพู', animal: '🦩', color: '#d94f87', pale: '#ffe1ed' },
+  { name: 'ทีมฟ้าคราม', animal: '🐳', color: '#148a9c', pale: '#daf5f7' },
 ]
 
 const QUESTIONS = [
@@ -30,10 +32,11 @@ const INTEGER_QUESTIONS = [
 ].map((q) => ({ ...q, product: q.m * q.n, sum: q.m + q.n }))
 const QUESTION_COUNT_OPTIONS = [5, 10, 15, 20]
 
-const blankAnswers = () => TEAMS.map(() => [])
-const blankFactorAnswers = () => TEAMS.map(() => [null, null, null, null])
-const blankGuidedAnswers = () => TEAMS.map(() => [null, null])
-const blankMembers = () => TEAMS.map(() => [])
+const blankAnswers = (count = 4) => Array.from({ length: count }, () => [])
+const blankFactorAnswers = (count = 4) => Array.from({ length: count }, () => [null, null, null, null])
+const blankGuidedAnswers = (count = 4) => Array.from({ length: count }, () => [null, null])
+const blankMembers = (count = 4) => Array.from({ length: count }, () => [])
+const fitArray = (value, count, makeItem) => Array.from({ length: count }, (_, index) => value?.[index] ?? makeItem(index))
 const STORAGE_KEY = 'factor-rally-state-v4'
 const CLASSROOM_SESSION_KEY = 'factor-rally-classroom-session-v1'
 const DEVICE_KEY = 'factor-rally-device-v1'
@@ -56,7 +59,7 @@ export default function App() {
   }
   if (session?.role === 'teacher') return <TeacherGame classroom={session} onLeaveRoom={closeSession}/>
   if (session?.role === 'student') return <StudentRoom session={session} onLeaveRoom={closeSession}/>
-  if (session?.role === 'solo') return <TeacherGame onLeaveRoom={closeSession}/>
+  if (session?.role === 'solo') return <SoloPractice session={session} onLeaveRoom={closeSession}/>
   if (!hasEntered) return <WelcomeScreen onEnter={() => setHasEntered(true)}/>
   return <ClassroomHome onOpenSession={openSession}/>
 }
@@ -88,37 +91,39 @@ function WelcomeScreen({ onEnter }) {
 }
 
 function TeacherGame({ classroom, onLeaveRoom }) {
+  const teamCount = Math.min(6, Math.max(2, classroom?.teamCount ?? 4))
+  const activeTeams = TEAMS.slice(0, teamCount)
   const [roomStatus, setRoomStatus] = useState('lobby')
   const [roomMeta, setRoomMeta] = useState(null)
   const [activity, setActivity] = useState('intro')
   const [introQuestionIndex, setIntroQuestionIndex] = useState(0)
-  const [introAnswers, setIntroAnswers] = useState(blankDistributiveAnswers)
-  const [introScores, setIntroScores] = useState(() => TEAMS.map(() => 0))
+  const [introAnswers, setIntroAnswers] = useState(() => blankAnswers(teamCount))
+  const [introScores, setIntroScores] = useState(() => activeTeams.map(() => 0))
   const [introGameMode, setIntroGameMode] = useState('same')
   const [introTotalQuestions, setIntroTotalQuestions] = useState(10)
   const [introRevealed, setIntroRevealed] = useState(false)
   const [introFinished, setIntroFinished] = useState(false)
   const [questionIndex, setQuestionIndex] = useState(0)
-  const [answers, setAnswers] = useState(blankAnswers)
-  const [scores, setScores] = useState(() => TEAMS.map(() => 0))
+  const [answers, setAnswers] = useState(() => blankAnswers(teamCount))
+  const [scores, setScores] = useState(() => activeTeams.map(() => 0))
   const [factorQuestionIndex, setFactorQuestionIndex] = useState(0)
-  const [factorAnswers, setFactorAnswers] = useState(blankFactorAnswers)
-  const [factorScores, setFactorScores] = useState(() => TEAMS.map(() => 0))
+  const [factorAnswers, setFactorAnswers] = useState(() => blankFactorAnswers(teamCount))
+  const [factorScores, setFactorScores] = useState(() => activeTeams.map(() => 0))
   const [factorGameMode, setFactorGameMode] = useState('same')
   const [factorNumberMode, setFactorNumberMode] = useState('mixed')
   const [factorTotalQuestions, setFactorTotalQuestions] = useState(10)
   const [factorRevealed, setFactorRevealed] = useState(false)
   const [factorFinished, setFactorFinished] = useState(false)
   const [guidedQuestionIndex, setGuidedQuestionIndex] = useState(0)
-  const [guidedAnswers, setGuidedAnswers] = useState(blankGuidedAnswers)
-  const [guidedScores, setGuidedScores] = useState(() => TEAMS.map(() => 0))
+  const [guidedAnswers, setGuidedAnswers] = useState(() => blankGuidedAnswers(teamCount))
+  const [guidedScores, setGuidedScores] = useState(() => activeTeams.map(() => 0))
   const [guidedGameMode, setGuidedGameMode] = useState('same')
   const [guidedNumberMode, setGuidedNumberMode] = useState('positive')
   const [guidedRevealed, setGuidedRevealed] = useState(false)
   const [guidedFinished, setGuidedFinished] = useState(false)
   const [feedback, setFeedback] = useState(null)
-  const [members, setMembers] = useState(blankMembers)
-  const [teamNames, setTeamNames] = useState(() => TEAMS.map((team) => team.name))
+  const [members, setMembers] = useState(() => blankMembers(teamCount))
+  const [teamNames, setTeamNames] = useState(() => activeTeams.map((team) => team.name))
   const [gameMode, setGameMode] = useState('same')
   const [numberMode, setNumberMode] = useState('positive')
   const [totalQuestions, setTotalQuestions] = useState(10)
@@ -132,12 +137,12 @@ function TeacherGame({ classroom, onLeaveRoom }) {
   const localRevision = useRef(0)
   const savePending = useRef(false)
   const questionBank = numberMode === 'integers' ? INTEGER_QUESTIONS : QUESTIONS
-  const teamQuestions = TEAMS.map((_, index) => gameMode === 'same' ? questionBank[questionIndex] : questionBank[(questionIndex + index * 4) % questionBank.length])
+  const teamQuestions = activeTeams.map((_, index) => gameMode === 'same' ? questionBank[questionIndex] : questionBank[(questionIndex + index * 4) % questionBank.length])
   const factorQuestionBank = factorNumberMode === 'mixed' ? MIXED_FACTOR_QUESTIONS : POSITIVE_FACTOR_QUESTIONS
-  const factorTeamQuestions = TEAMS.map((_, index) => factorGameMode === 'same' ? factorQuestionBank[factorQuestionIndex] : factorQuestionBank[(factorQuestionIndex + index * 3) % factorQuestionBank.length])
+  const factorTeamQuestions = activeTeams.map((_, index) => factorGameMode === 'same' ? factorQuestionBank[factorQuestionIndex] : factorQuestionBank[(factorQuestionIndex + index * 3) % factorQuestionBank.length])
   const guidedQuestionBank = guidedNumberMode === 'mixed' ? MIXED_GUIDED_QUESTIONS : POSITIVE_GUIDED_QUESTIONS
-  const guidedTeamQuestions = TEAMS.map((_, index) => guidedGameMode === 'same' ? guidedQuestionBank[guidedQuestionIndex] : guidedQuestionBank[(guidedQuestionIndex + index * 3) % guidedQuestionBank.length])
-  const introTeamQuestions = TEAMS.map((_, index) => introGameMode === 'same' ? DISTRIBUTIVE_QUESTIONS[introQuestionIndex] : DISTRIBUTIVE_QUESTIONS[(introQuestionIndex + index * 3) % DISTRIBUTIVE_QUESTIONS.length])
+  const guidedTeamQuestions = activeTeams.map((_, index) => guidedGameMode === 'same' ? guidedQuestionBank[guidedQuestionIndex] : guidedQuestionBank[(guidedQuestionIndex + index * 3) % guidedQuestionBank.length])
+  const introTeamQuestions = activeTeams.map((_, index) => introGameMode === 'same' ? DISTRIBUTIVE_QUESTIONS[introQuestionIndex] : DISTRIBUTIVE_QUESTIONS[(introQuestionIndex + index * 3) % DISTRIBUTIVE_QUESTIONS.length])
   const question = teamQuestions[0]
   const choices = useMemo(() => numberMode === 'integers' ? Array.from({ length: 13 }, (_, i) => i - 6) : Array.from({ length: 10 }, (_, i) => i + 1), [numberMode])
   const allReady = answers.every((answer) => answer.length === 2)
@@ -150,17 +155,15 @@ function TeacherGame({ classroom, onLeaveRoom }) {
       const savedTotal = QUESTION_COUNT_OPTIONS.includes(state.totalQuestions) ? state.totalQuestions : 10
       const invalidIndex = (state.questionIndex ?? 0) >= savedTotal
       setQuestionIndex(invalidIndex ? 0 : (state.questionIndex ?? 0))
-      setAnswers(invalidIndex ? blankAnswers() : (state.answers ?? blankAnswers()))
-      setScores(state.scores ?? TEAMS.map(() => 0))
+      setAnswers(invalidIndex ? blankAnswers(teamCount) : fitArray(state.answers, teamCount, () => []))
+      setScores(fitArray(state.scores, teamCount, () => 0))
       setActivity(['intro', 'pairs', 'guided', 'factor'].includes(state.activity) ? state.activity : 'intro')
       const savedIntroTotal = QUESTION_COUNT_OPTIONS.includes(state.introTotalQuestions) ? state.introTotalQuestions : 10
       const invalidIntroIndex = (state.introQuestionIndex ?? 0) >= savedIntroTotal
       setIntroQuestionIndex(invalidIntroIndex ? 0 : (state.introQuestionIndex ?? 0))
-      const savedIntroAnswers = Array.isArray(state.introAnswers) && state.introAnswers.length === TEAMS.length && state.introAnswers.every(Array.isArray)
-        ? state.introAnswers
-        : blankDistributiveAnswers()
-      setIntroAnswers(invalidIntroIndex ? blankDistributiveAnswers() : savedIntroAnswers)
-      setIntroScores(state.introScores ?? TEAMS.map(() => 0))
+      const savedIntroAnswers = fitArray(state.introAnswers, teamCount, () => [])
+      setIntroAnswers(invalidIntroIndex ? blankAnswers(teamCount) : savedIntroAnswers)
+      setIntroScores(fitArray(state.introScores, teamCount, () => 0))
       setIntroGameMode(state.introGameMode === 'different' ? 'different' : 'same')
       setIntroTotalQuestions(savedIntroTotal)
       setIntroRevealed(invalidIntroIndex ? false : Boolean(state.introRevealed))
@@ -168,26 +171,24 @@ function TeacherGame({ classroom, onLeaveRoom }) {
       const savedFactorTotal = QUESTION_COUNT_OPTIONS.includes(state.factorTotalQuestions) ? state.factorTotalQuestions : 10
       const invalidFactorIndex = (state.factorQuestionIndex ?? 0) >= savedFactorTotal
       setFactorQuestionIndex(invalidFactorIndex ? 0 : (state.factorQuestionIndex ?? 0))
-      const savedFactorAnswers = Array.isArray(state.factorAnswers) && state.factorAnswers.length === TEAMS.length && state.factorAnswers.every((answer) => Array.isArray(answer) && answer.length === 4)
-        ? state.factorAnswers
-        : blankFactorAnswers()
-      setFactorAnswers(invalidFactorIndex ? blankFactorAnswers() : savedFactorAnswers)
-      setFactorScores(state.factorScores ?? TEAMS.map(() => 0))
+      const savedFactorAnswers = fitArray(state.factorAnswers, teamCount, () => [null, null, null, null])
+      setFactorAnswers(invalidFactorIndex ? blankFactorAnswers(teamCount) : savedFactorAnswers)
+      setFactorScores(fitArray(state.factorScores, teamCount, () => 0))
       setFactorGameMode(state.factorGameMode === 'different' ? 'different' : 'same')
       setFactorNumberMode(state.factorNumberMode === 'positive' ? 'positive' : 'mixed')
       setFactorTotalQuestions(savedFactorTotal)
       setFactorRevealed(invalidFactorIndex ? false : Boolean(state.factorRevealed))
       setFactorFinished(invalidFactorIndex ? false : Boolean(state.factorFinished))
       setGuidedQuestionIndex((state.guidedQuestionIndex ?? 0) < GUIDED_QUESTION_COUNT ? (state.guidedQuestionIndex ?? 0) : 0)
-      const savedGuidedAnswers = Array.isArray(state.guidedAnswers) && state.guidedAnswers.length === TEAMS.length && state.guidedAnswers.every((answer) => Array.isArray(answer) && answer.length === 2) ? state.guidedAnswers : blankGuidedAnswers()
+      const savedGuidedAnswers = fitArray(state.guidedAnswers, teamCount, () => [null, null])
       setGuidedAnswers(savedGuidedAnswers)
-      setGuidedScores(state.guidedScores ?? TEAMS.map(() => 0))
+      setGuidedScores(fitArray(state.guidedScores, teamCount, () => 0))
       setGuidedGameMode(state.guidedGameMode === 'different' ? 'different' : 'same')
       setGuidedNumberMode(state.guidedNumberMode === 'mixed' ? 'mixed' : 'positive')
       setGuidedRevealed(Boolean(state.guidedRevealed))
       setGuidedFinished(Boolean(state.guidedFinished))
-      setMembers(state.members ?? blankMembers())
-      setTeamNames(state.teamNames ?? TEAMS.map((team) => team.name))
+      setMembers(fitArray(state.members, teamCount, () => []))
+      setTeamNames(fitArray(state.teamNames, teamCount, (index) => activeTeams[index].name))
       setGameMode(state.gameMode ?? 'same')
       setNumberMode(state.numberMode ?? 'positive')
       setTotalQuestions(savedTotal)
@@ -222,7 +223,7 @@ function TeacherGame({ classroom, onLeaveRoom }) {
     if (!hydrated) return
     const revision = ++localRevision.current
     savePending.current = true
-    const state = { roomStatus, activity, introQuestionIndex, introAnswers, introScores, introGameMode, introTotalQuestions, introRevealed, introFinished, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorGameMode, factorNumberMode, factorTotalQuestions, factorRevealed, factorFinished, guidedQuestionIndex, guidedAnswers, guidedScores, guidedGameMode, guidedNumberMode, guidedRevealed, guidedFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished }
+    const state = { teamCount, roomStatus, activity, introQuestionIndex, introAnswers, introScores, introGameMode, introTotalQuestions, introRevealed, introFinished, questionIndex, answers, scores, factorQuestionIndex, factorAnswers, factorScores, factorGameMode, factorNumberMode, factorTotalQuestions, factorRevealed, factorFinished, guidedQuestionIndex, guidedAnswers, guidedScores, guidedGameMode, guidedNumberMode, guidedRevealed, guidedFinished, members, teamNames, gameMode, numberMode, totalQuestions, revealed, finished }
     if (!classroom) localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
     setSaveStatus('saving')
     const timer = setTimeout(async () => {
@@ -284,7 +285,7 @@ function TeacherGame({ classroom, onLeaveRoom }) {
 
   const revealIntro = () => {
     if (introRevealed || !introAnswers.every((answer, index) => isDistributiveReady(answer, introTeamQuestions[index]))) return
-    const results = TEAMS.map((_, index) => isDistributiveCorrect(introAnswers[index], introTeamQuestions[index]))
+    const results = activeTeams.map((_, index) => isDistributiveCorrect(introAnswers[index], introTeamQuestions[index]))
     setIntroScores((current) => current.map((score, index) => score + (results[index] ? 1 : 0)))
     setIntroRevealed(true)
     playFeedbackSound(results)
@@ -294,18 +295,18 @@ function TeacherGame({ classroom, onLeaveRoom }) {
   const nextIntroQuestion = () => {
     if (introQuestionIndex === introTotalQuestions - 1) return setIntroFinished(true)
     setIntroQuestionIndex((value) => value + 1)
-    setIntroAnswers(blankDistributiveAnswers())
+    setIntroAnswers(blankAnswers(teamCount))
     setIntroRevealed(false)
   }
 
   const resetIntro = () => {
-    setIntroQuestionIndex(0); setIntroAnswers(blankDistributiveAnswers()); setIntroScores(TEAMS.map(() => 0))
+    setIntroQuestionIndex(0); setIntroAnswers(blankAnswers(teamCount)); setIntroScores(activeTeams.map(() => 0))
     setIntroRevealed(false); setIntroFinished(false); setShowReset(false)
   }
 
   const reveal = () => {
     if (!allReady || revealed) return
-    const results = TEAMS.map((_, index) => isCorrect(answers[index], teamQuestions[index]))
+    const results = activeTeams.map((_, index) => isCorrect(answers[index], teamQuestions[index]))
     setScores((current) => current.map((score, index) => score + (results[index] ? 1 : 0)))
     setRevealed(true)
     playFeedbackSound(results)
@@ -315,12 +316,12 @@ function TeacherGame({ classroom, onLeaveRoom }) {
   const nextQuestion = () => {
     if (questionIndex === totalQuestions - 1) return setFinished(true)
     setQuestionIndex((value) => value + 1)
-    setAnswers(blankAnswers())
+    setAnswers(blankAnswers(teamCount))
     setRevealed(false)
   }
 
   const reset = () => {
-    setQuestionIndex(0); setAnswers(blankAnswers()); setScores(TEAMS.map(() => 0))
+    setQuestionIndex(0); setAnswers(blankAnswers(teamCount)); setScores(activeTeams.map(() => 0))
     setRevealed(false); setFinished(false); setShowReset(false)
   }
 
@@ -334,7 +335,7 @@ function TeacherGame({ classroom, onLeaveRoom }) {
 
   const revealFactor = () => {
     if (factorRevealed || !factorAnswers.every((answer) => answer.length === 4 && answer.filter(Number.isFinite).length === 4)) return
-    const results = TEAMS.map((_, index) => isFactorCorrect(factorAnswers[index], factorTeamQuestions[index]))
+    const results = activeTeams.map((_, index) => isFactorCorrect(factorAnswers[index], factorTeamQuestions[index]))
     setFactorScores((current) => current.map((score, index) => score + (results[index] ? 1 : 0)))
     setFactorRevealed(true)
     playFeedbackSound(results)
@@ -344,12 +345,12 @@ function TeacherGame({ classroom, onLeaveRoom }) {
   const nextFactorQuestion = () => {
     if (factorQuestionIndex === factorTotalQuestions - 1) return setFactorFinished(true)
     setFactorQuestionIndex((value) => value + 1)
-    setFactorAnswers(blankFactorAnswers())
+    setFactorAnswers(blankFactorAnswers(teamCount))
     setFactorRevealed(false)
   }
 
   const resetFactor = () => {
-    setFactorQuestionIndex(0); setFactorAnswers(blankFactorAnswers()); setFactorScores(TEAMS.map(() => 0))
+    setFactorQuestionIndex(0); setFactorAnswers(blankFactorAnswers(teamCount)); setFactorScores(activeTeams.map(() => 0))
     setFactorRevealed(false); setFactorFinished(false); setShowReset(false)
   }
 
@@ -360,7 +361,7 @@ function TeacherGame({ classroom, onLeaveRoom }) {
 
   const revealGuided = () => {
     if (guidedRevealed || !guidedAnswers.every((answer) => answer.filter(Number.isFinite).length === 2)) return
-    const results = TEAMS.map((_, index) => isGuidedCorrect(guidedAnswers[index], guidedTeamQuestions[index]))
+    const results = activeTeams.map((_, index) => isGuidedCorrect(guidedAnswers[index], guidedTeamQuestions[index]))
     setGuidedScores((current) => current.map((score, index) => score + (results[index] ? 1 : 0)))
     setGuidedRevealed(true)
     playFeedbackSound(results)
@@ -370,21 +371,21 @@ function TeacherGame({ classroom, onLeaveRoom }) {
   const nextGuidedQuestion = () => {
     if (guidedQuestionIndex === GUIDED_QUESTION_COUNT - 1) return setGuidedFinished(true)
     setGuidedQuestionIndex((value) => value + 1)
-    setGuidedAnswers(blankGuidedAnswers())
+    setGuidedAnswers(blankGuidedAnswers(teamCount))
     setGuidedRevealed(false)
   }
 
   const resetGuided = () => {
-    setGuidedQuestionIndex(0); setGuidedAnswers(blankGuidedAnswers()); setGuidedScores(TEAMS.map(() => 0))
+    setGuidedQuestionIndex(0); setGuidedAnswers(blankGuidedAnswers(teamCount)); setGuidedScores(activeTeams.map(() => 0))
     setGuidedRevealed(false); setGuidedFinished(false); setShowReset(false)
   }
 
   const applyIntroSettings = (names, mode, _numberMode, nextTotalQuestions) => {
-    setTeamNames(names.map((name, index) => name.trim() || TEAMS[index].name))
+    setTeamNames(names.map((name, index) => name.trim() || activeTeams[index].name))
     if (mode !== introGameMode || nextTotalQuestions !== introTotalQuestions) {
       setIntroGameMode(mode)
       setIntroTotalQuestions(nextTotalQuestions)
-      setIntroAnswers(blankDistributiveAnswers())
+      setIntroAnswers(blankAnswers(teamCount))
       setIntroRevealed(false)
       if (introRevealed) {
         if (introQuestionIndex >= nextTotalQuestions - 1) setIntroFinished(true)
@@ -395,12 +396,12 @@ function TeacherGame({ classroom, onLeaveRoom }) {
   }
 
   const applyFactorSettings = (names, mode, nextNumberMode, nextTotalQuestions) => {
-    setTeamNames(names.map((name, index) => name.trim() || TEAMS[index].name))
+    setTeamNames(names.map((name, index) => name.trim() || activeTeams[index].name))
     if (mode !== factorGameMode || nextNumberMode !== factorNumberMode || nextTotalQuestions !== factorTotalQuestions) {
       setFactorGameMode(mode)
       setFactorNumberMode(nextNumberMode)
       setFactorTotalQuestions(nextTotalQuestions)
-      setFactorAnswers(blankFactorAnswers())
+      setFactorAnswers(blankFactorAnswers(teamCount))
       setFactorRevealed(false)
       if (factorRevealed) {
         if (factorQuestionIndex >= nextTotalQuestions - 1) setFactorFinished(true)
@@ -411,11 +412,11 @@ function TeacherGame({ classroom, onLeaveRoom }) {
   }
 
   const applyGuidedSettings = (names, mode, nextNumberMode) => {
-    setTeamNames(names.map((name, index) => name.trim() || TEAMS[index].name))
+    setTeamNames(names.map((name, index) => name.trim() || activeTeams[index].name))
     if (mode !== guidedGameMode || nextNumberMode !== guidedNumberMode) {
       setGuidedGameMode(mode)
       setGuidedNumberMode(nextNumberMode)
-      setGuidedAnswers(blankGuidedAnswers())
+      setGuidedAnswers(blankGuidedAnswers(teamCount))
       setGuidedRevealed(false)
       if (guidedRevealed) {
         if (guidedQuestionIndex >= GUIDED_QUESTION_COUNT - 1) setGuidedFinished(true)
@@ -430,17 +431,22 @@ function TeacherGame({ classroom, onLeaveRoom }) {
     setMemberTeam(null)
   }
 
-  const removeMember = (teamIndex, memberId) => {
+  const removeMember = async (teamIndex, memberId) => {
+    if (classroom) {
+      const response = await fetch(`/api/rooms/${classroom.code}/players/${memberId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${classroom.token}` } })
+      if (response.ok) setRoomMeta((current) => ({ ...current, members: current.members.map((list, index) => index === teamIndex ? list.filter((member) => member.id !== memberId) : list) }))
+      return
+    }
     setMembers((current) => current.map((list, index) => index === teamIndex ? list.filter((member) => member.id !== memberId) : list))
   }
 
   const applySettings = (names, mode, nextNumberMode, nextTotalQuestions) => {
-    setTeamNames(names.map((name, index) => name.trim() || TEAMS[index].name))
+    setTeamNames(names.map((name, index) => name.trim() || activeTeams[index].name))
     if (mode !== gameMode || nextNumberMode !== numberMode || nextTotalQuestions !== totalQuestions) {
       setGameMode(mode)
       setNumberMode(nextNumberMode)
       setTotalQuestions(nextTotalQuestions)
-      setAnswers(blankAnswers())
+      setAnswers(blankAnswers(teamCount))
       setRevealed(false)
       if (revealed) {
         if (questionIndex >= nextTotalQuestions - 1) setFinished(true)
@@ -458,7 +464,7 @@ function TeacherGame({ classroom, onLeaveRoom }) {
   const unlockTeam = async (teamIndex) => {
     if (!classroom) return
     const response = await fetch(`/api/rooms/${classroom.code}/teams/${teamIndex}`, { method: 'DELETE', headers: { Authorization: `Bearer ${classroom.token}` } })
-    if (response.ok) setRoomMeta((current) => ({ ...current, occupiedTeams: (current?.occupiedTeams ?? []).filter((index) => index !== teamIndex) }))
+    if (response.ok) setRoomMeta((current) => ({ ...current, occupiedTeams: (current?.occupiedTeams ?? []).filter((index) => index !== teamIndex), members: current.members.map((list, index) => index === teamIndex ? [] : list) }))
   }
 
   const adjustScore = (teamIndex, amount) => {
@@ -467,7 +473,7 @@ function TeacherGame({ classroom, onLeaveRoom }) {
   }
 
   const resetAllScores = () => {
-    const emptyScores = () => TEAMS.map(() => 0)
+    const emptyScores = () => activeTeams.map(() => 0)
     setIntroScores(emptyScores())
     setScores(emptyScores())
     setGuidedScores(emptyScores())
@@ -475,11 +481,12 @@ function TeacherGame({ classroom, onLeaveRoom }) {
     setShowReset(false)
   }
 
+  const effectiveMembers = classroom ? fitArray(roomMeta?.members, teamCount, () => []) : members
   if (!hydrated) return <main className="paper-grid grid min-h-screen place-items-center"><div className="text-center text-[#193b2b]"><LoaderCircle className="mx-auto animate-spin" size={44}/><p className="mt-3 font-black">กำลังโหลดห้องเรียน…</p></div></main>
-  if (activity === 'intro' && introFinished) return <Results scores={introScores} members={members} teamNames={teamNames} totalQuestions={introTotalQuestions} onReset={resetIntro} onLeave={onLeaveRoom} activityName="แจกแจงให้แจ่ม" />
-  if (activity === 'pairs' && finished) return <Results scores={scores} members={members} teamNames={teamNames} totalQuestions={totalQuestions} onReset={reset} onLeave={onLeaveRoom} />
-  if (activity === 'guided' && guidedFinished) return <Results scores={guidedScores} members={members} teamNames={teamNames} totalQuestions={GUIDED_QUESTION_COUNT} onReset={resetGuided} onLeave={onLeaveRoom} activityName="คู่คิดพิชิตวงเล็บ" />
-  if (activity === 'factor' && factorFinished) return <Results scores={factorScores} members={members} teamNames={teamNames} totalQuestions={factorTotalQuestions} onReset={resetFactor} onLeave={onLeaveRoom} activityName="นักสืบตัวประกอบ" />
+  if (activity === 'intro' && introFinished) return <Results teams={activeTeams} scores={introScores} members={effectiveMembers} teamNames={teamNames} totalQuestions={introTotalQuestions} onReset={resetIntro} onLeave={onLeaveRoom} activityName="แจกแจงให้แจ่ม" />
+  if (activity === 'pairs' && finished) return <Results teams={activeTeams} scores={scores} members={effectiveMembers} teamNames={teamNames} totalQuestions={totalQuestions} onReset={reset} onLeave={onLeaveRoom} />
+  if (activity === 'guided' && guidedFinished) return <Results teams={activeTeams} scores={guidedScores} members={effectiveMembers} teamNames={teamNames} totalQuestions={GUIDED_QUESTION_COUNT} onReset={resetGuided} onLeave={onLeaveRoom} activityName="คู่คิดพิชิตวงเล็บ" />
+  if (activity === 'factor' && factorFinished) return <Results teams={activeTeams} scores={factorScores} members={effectiveMembers} teamNames={teamNames} totalQuestions={factorTotalQuestions} onReset={resetFactor} onLeave={onLeaveRoom} activityName="นักสืบตัวประกอบ" />
 
   const activeScores = activity === 'intro' ? introScores : activity === 'factor' ? factorScores : activity === 'guided' ? guidedScores : scores
   const activeAnswers = activity === 'intro' ? introAnswers : activity === 'factor' ? factorAnswers : activity === 'guided' ? guidedAnswers : answers
@@ -494,10 +501,10 @@ function TeacherGame({ classroom, onLeaveRoom }) {
 
   return <main className="paper-grid min-h-screen p-3 lg:px-4 lg:py-1">
     <div className="game-shell mx-auto max-w-[1600px] gap-4">
-      <ScoreSidebar scores={activeScores} answers={activeAnswers} members={members} teamNames={teamNames} questions={activeQuestions} totalQuestions={activeTotal} revealed={activeRevealed} isAnswerCorrect={activeCorrect} isAnswerReady={activeReady} answerSize={activeAnswerSize} onAdjustScore={adjustScore} onAdd={setMemberTeam} onRemove={removeMember} />
+      <ScoreSidebar teams={activeTeams} scores={activeScores} answers={activeAnswers} members={effectiveMembers} teamNames={teamNames} questions={activeQuestions} totalQuestions={activeTotal} revealed={activeRevealed} isAnswerCorrect={activeCorrect} isAnswerReady={activeReady} answerSize={activeAnswerSize} onAdjustScore={adjustScore} onAdd={classroom ? null : setMemberTeam} onRemove={removeMember} />
 
       <div className="min-w-0">
-        {classroom && <RoomControlBar code={classroom.code} status={roomStatus} occupiedTeams={roomMeta?.occupiedTeams ?? []} onToggle={() => setRoomStatus((status) => status === 'playing' ? 'lobby' : 'playing')} onUnlock={unlockTeam} onLeave={onLeaveRoom}/>}
+        {classroom && <RoomControlBar teams={activeTeams} code={classroom.code} status={roomStatus} members={effectiveMembers} occupiedTeams={roomMeta?.occupiedTeams ?? []} onToggle={() => setRoomStatus((status) => status === 'playing' ? 'lobby' : 'playing')} onUnlock={unlockTeam} onLeave={onLeaveRoom}/>}
         <header className="mb-3 flex min-h-12 flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3"><div className={`grid size-10 place-items-center rounded-xl text-xl font-black text-white ${activity === 'intro' ? 'bg-[#6d4317]' : activity === 'factor' ? 'bg-[#30265f]' : activity === 'guided' ? 'bg-[#174c63]' : 'bg-[#193b2b]'}`}>{activityIcon}</div><div><h1 className="text-xl font-black text-[#193b2b]">{activityTitle}</h1><p className="text-xs font-bold text-[#6d756f]">ทุกกลุ่มเลือกพร้อมกัน · ครูเฉลยครั้งเดียว</p></div></div>
           <div className="flex flex-wrap justify-end gap-2">
@@ -512,18 +519,18 @@ function TeacherGame({ classroom, onLeaveRoom }) {
         </header>
 
         {activity === 'intro'
-          ? <DistributivePlayArea teams={TEAMS} teamNames={teamNames} questions={introTeamQuestions} index={introQuestionIndex} totalQuestions={introTotalQuestions} answers={introAnswers} revealed={introRevealed} onSelect={selectIntroToken} onReveal={revealIntro} onNext={nextIntroQuestion}/>
+          ? <DistributivePlayArea teams={activeTeams} teamNames={teamNames} questions={introTeamQuestions} index={introQuestionIndex} totalQuestions={introTotalQuestions} answers={introAnswers} revealed={introRevealed} onSelect={selectIntroToken} onReveal={revealIntro} onNext={nextIntroQuestion}/>
           : activity === 'factor'
-          ? <FactorPlayArea teams={TEAMS} teamNames={teamNames} questions={factorTeamQuestions} index={factorQuestionIndex} totalQuestions={factorTotalQuestions} answers={factorAnswers} revealed={factorRevealed} numberMode={factorNumberMode} onSelect={selectFactorNumber} onReveal={revealFactor} onNext={nextFactorQuestion}/>
+          ? <FactorPlayArea teams={activeTeams} teamNames={teamNames} questions={factorTeamQuestions} index={factorQuestionIndex} totalQuestions={factorTotalQuestions} answers={factorAnswers} revealed={factorRevealed} numberMode={factorNumberMode} onSelect={selectFactorNumber} onReveal={revealFactor} onNext={nextFactorQuestion}/>
           : activity === 'guided'
-            ? <GuidedPlayArea teams={TEAMS} teamNames={teamNames} questions={guidedTeamQuestions} index={guidedQuestionIndex} answers={guidedAnswers} revealed={guidedRevealed} numberMode={guidedNumberMode} onSelect={selectGuidedNumber} onReveal={revealGuided} onNext={nextGuidedQuestion}/>
+            ? <GuidedPlayArea teams={activeTeams} teamNames={teamNames} questions={guidedTeamQuestions} index={guidedQuestionIndex} answers={guidedAnswers} revealed={guidedRevealed} numberMode={guidedNumberMode} onSelect={selectGuidedNumber} onReveal={revealGuided} onNext={nextGuidedQuestion}/>
           : <>
             <QuestionBanner question={question} index={questionIndex} totalQuestions={totalQuestions} revealed={revealed} mode={gameMode} numberMode={numberMode} />
-            <section className="team-board-grid mt-3 grid gap-3" aria-label="คำตอบของทั้งสี่กลุ่ม">
-              {TEAMS.map((team, index) => <TeamCard key={team.name} team={{ ...team, name: teamNames[index] }} question={teamQuestions[index]} showQuestion={gameMode === 'different'} integerMode={numberMode === 'integers'} answer={answers[index]} choices={choices} revealed={revealed} correct={revealed && isCorrect(answers[index], teamQuestions[index])} onSelect={(number) => selectNumber(index, number)} />)}
+            <section className="team-board-grid mt-3 grid gap-3" aria-label={`คำตอบของ ${teamCount} กลุ่ม`}>
+              {activeTeams.map((team, index) => <TeamCard key={team.name} team={{ ...team, name: teamNames[index] }} question={teamQuestions[index]} showQuestion={gameMode === 'different'} integerMode={numberMode === 'integers'} answer={answers[index]} choices={choices} revealed={revealed} correct={revealed && isCorrect(answers[index], teamQuestions[index])} onSelect={(number) => selectNumber(index, number)} />)}
             </section>
             <div className="mt-3 flex items-center gap-3 rounded-2xl bg-white p-2 shadow-sm">
-              <p className="hidden flex-1 pl-2 text-sm font-bold text-[#70776f] sm:block">{revealed ? resultText(answers, teamQuestions, teamNames) : `พร้อมแล้ว ${answers.filter((a) => a.length === 2).length}/4 กลุ่ม`}</p>
+              <p className="hidden flex-1 pl-2 text-sm font-bold text-[#70776f] sm:block">{revealed ? resultText(answers, teamQuestions, teamNames, activeTeams) : `พร้อมแล้ว ${answers.filter((a) => a.length === 2).length}/${teamCount} กลุ่ม`}</p>
               <button onClick={revealed ? nextQuestion : reveal} disabled={!revealed && !allReady} className={`flex min-h-14 flex-1 items-center justify-center gap-2 rounded-xl px-6 text-lg font-black sm:max-w-md ${revealed ? 'bg-[#193b2b] text-white' : 'bg-[#ef9940] text-[#352111]'} disabled:cursor-not-allowed disabled:opacity-35`}>
                 {revealed ? <>ข้อต่อไป <ChevronRight/></> : <><Eye/> ครูเฉลยพร้อมกัน</>}
               </button>
@@ -532,11 +539,12 @@ function TeacherGame({ classroom, onLeaveRoom }) {
       </div>
     </div>
     {showReset && <ConfirmReset onCancel={() => setShowReset(false)} onConfirm={resetAllScores} />}
-    <FeedbackEffects feedback={feedback} teams={TEAMS} teamNames={teamNames} onDone={() => setFeedback(null)} />
-    {memberTeam !== null && <MemberModal team={{ ...TEAMS[memberTeam], name: teamNames[memberTeam] }} onCancel={() => setMemberTeam(null)} onAdd={addMember} />}
+    <FeedbackEffects feedback={feedback} teams={activeTeams} teamNames={teamNames} onDone={() => setFeedback(null)} />
+    {memberTeam !== null && <MemberModal team={{ ...activeTeams[memberTeam], name: teamNames[memberTeam] }} onCancel={() => setMemberTeam(null)} onAdd={addMember} />}
     {showSettings && (activity === 'pairs'
-      ? <SettingsModal names={teamNames} mode={gameMode} numberMode={numberMode} totalQuestions={totalQuestions} currentQuestion={questionIndex + 1} onCancel={() => setShowSettings(false)} onApply={applySettings} />
+      ? <SettingsModal teams={activeTeams} names={teamNames} mode={gameMode} numberMode={numberMode} totalQuestions={totalQuestions} currentQuestion={questionIndex + 1} onCancel={() => setShowSettings(false)} onApply={applySettings} />
       : <FactorSettingsModal
+          teams={activeTeams}
           names={teamNames}
           mode={activity === 'intro' ? introGameMode : activity === 'factor' ? factorGameMode : guidedGameMode}
           numberMode={activity === 'factor' ? factorNumberMode : guidedNumberMode}
@@ -555,16 +563,19 @@ function TeacherGame({ classroom, onLeaveRoom }) {
 function ClassroomHome({ onOpenSession }) {
   const [code, setCode] = useState('')
   const [room, setRoom] = useState(null)
+  const [teamCount, setTeamCount] = useState(4)
+  const [playerName, setPlayerName] = useState('')
+  const [playerEmoji, setPlayerEmoji] = useState(MEMBER_EMOJIS[0])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const createRoom = async () => {
     setLoading(true); setError('')
     try {
-      const response = await fetch('/api/rooms', { method: 'POST' })
+      const response = await fetch('/api/rooms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ teamCount }) })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error)
-      onOpenSession({ role: 'teacher', code: payload.code, token: payload.teacherToken })
+      onOpenSession({ role: 'teacher', code: payload.code, token: payload.teacherToken, teamCount: payload.teamCount })
     } catch { setError('ยังสร้างห้องไม่ได้ กรุณาลองอีกครั้ง') }
     finally { setLoading(false) }
   }
@@ -584,15 +595,16 @@ function ClassroomHome({ onOpenSession }) {
   }
 
   const joinTeam = async (teamIndex) => {
+    if (!playerName.trim()) return setError('กรุณาตั้งชื่อก่อนเลือกกลุ่ม')
     setLoading(true); setError('')
     let deviceId = localStorage.getItem(DEVICE_KEY)
     if (!deviceId) { deviceId = crypto.randomUUID(); localStorage.setItem(DEVICE_KEY, deviceId) }
     try {
-      const response = await fetch(`/api/rooms/${room.code}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ teamIndex, deviceId }) })
+      const response = await fetch(`/api/rooms/${room.code}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ teamIndex, deviceId, name: playerName.trim(), emoji: playerEmoji }) })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error)
-      onOpenSession({ role: 'student', code: room.code, teamIndex, token: payload.playerToken })
-    } catch { setError('กลุ่มนี้มีผู้เข้าแล้ว กรุณาเลือกกลุ่มอื่นหรือแจ้งครูให้ปลดล็อก') }
+      onOpenSession({ role: 'student', code: room.code, teamIndex, token: payload.playerToken, name: payload.name, emoji: payload.emoji })
+    } catch { setError('ยังเข้ากลุ่มไม่ได้ กรุณาตรวจข้อมูลแล้วลองอีกครั้ง') }
     finally { setLoading(false) }
   }
 
@@ -613,7 +625,7 @@ function ClassroomHome({ onOpenSession }) {
           <div className="classroom-role-card teacher-role">
             <div className="classroom-role-icon"><GraduationCap size={30}/></div>
             <div><span className="classroom-role-label">TEACHER</span><h3>สำหรับครู</h3><p>สร้างห้อง เลือกกิจกรรม และควบคุมการเฉลยจากจอหลัก</p></div>
-            <button onClick={createRoom} disabled={loading} className="classroom-primary-button"><Users size={20}/> {loading ? 'กำลังสร้างห้อง…' : 'สร้างห้องใหม่'} <ArrowRight size={19}/></button>
+            <div className="mt-auto"><label className="mb-2 block text-xs font-bold text-[#687970]">จำนวนกลุ่ม</label><div className="mb-3 grid grid-cols-5 gap-1">{[2, 3, 4, 5, 6].map((count) => <button type="button" key={count} onClick={() => setTeamCount(count)} className={`min-h-9 rounded-lg font-black ${teamCount === count ? 'bg-[#193b2b] text-white' : 'bg-[#edf3ef] text-[#456052]'}`}>{count}</button>)}</div><button onClick={createRoom} disabled={loading} className="classroom-primary-button w-full"><Users size={20}/> {loading ? 'กำลังสร้างห้อง…' : `สร้างห้อง ${teamCount} กลุ่ม`} <ArrowRight size={19}/></button></div>
           </div>
           <form onSubmit={findRoom} className="classroom-role-card student-role">
             <div className="classroom-role-icon"><Smartphone size={28}/></div>
@@ -624,14 +636,15 @@ function ClassroomHome({ onOpenSession }) {
             </div>
           </form>
         </div>
-        <div className="classroom-solo-row"><span>หรือ</span><button onClick={() => onOpenSession({ role: 'solo' })}>เล่นบนเครื่องเดียว <ChevronRight size={16}/></button></div>
+        <div className="classroom-solo-row"><span>หรือ</span><button onClick={() => onOpenSession({ role: 'solo' })}>ฝึกเล่นคนเดียว <ChevronRight size={16}/></button></div>
         {error && <p className="classroom-error">{error}</p>}
       </div> : <div className="p-6 sm:p-10">
         <button onClick={() => { setRoom(null); setError('') }} className="flex items-center gap-1 font-black text-[#66736c]"><ArrowLeft size={18}/> เปลี่ยนรหัสห้อง</button>
-        <div className="mt-4 text-center"><p className="text-sm font-black text-[#7a746b]">ห้อง {room.code}</p><h2 className="text-3xl font-black text-[#193b2b]">เลือกกลุ่มของคุณ</h2><p className="mt-1 font-bold text-[#6b746e]">หนึ่งมือถือประจำหนึ่งกลุ่ม</p></div>
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">{TEAMS.map((team, index) => {
-          const occupied = room.occupiedTeams.includes(index)
-          return <button key={team.name} disabled={occupied || loading} onClick={() => joinTeam(index)} className="rounded-3xl border-2 p-5 text-center disabled:cursor-not-allowed disabled:grayscale" style={{ borderColor: team.color, backgroundColor: occupied ? '#eeeae1' : team.pale }}><span className="text-5xl">{team.animal}</span><strong className="mt-2 block text-lg" style={{ color: occupied ? '#777' : team.color }}>{room.teamNames[index]}</strong><span className="mt-1 block text-xs font-black text-[#6e756f]">{occupied ? 'มีผู้เข้าแล้ว' : 'เลือกกลุ่มนี้'}</span></button>
+        <div className="mt-4 text-center"><p className="text-sm font-black text-[#7a746b]">ห้อง {room.code}</p><h2 className="text-3xl font-black text-[#193b2b]">สร้างตัวตนและเลือกกลุ่ม</h2><p className="mt-1 font-bold text-[#6b746e]">หลายคนสามารถอยู่กลุ่มเดียวกันได้</p></div>
+        <div className="mx-auto mt-5 max-w-xl rounded-2xl bg-[#f5f1e8] p-4"><label className="text-sm font-black text-[#4e5a53]">ชื่อของฉัน</label><input value={playerName} onChange={(event) => setPlayerName(event.target.value)} maxLength={24} placeholder="เช่น น้องมิน" className="mt-2 min-h-12 w-full rounded-xl border-2 border-white bg-white px-4 text-lg font-bold outline-none focus:border-[#40755b]"/><p className="mt-3 text-sm font-black text-[#4e5a53]">เลือกหน้าอิโมจิ</p><div className="mt-2 grid grid-cols-6 gap-2">{MEMBER_EMOJIS.map((emoji) => <button type="button" key={emoji} onClick={() => setPlayerEmoji(emoji)} className={`grid aspect-square place-items-center rounded-xl border-2 text-2xl ${playerEmoji === emoji ? 'border-[#193b2b] bg-white' : 'border-transparent bg-white/60'}`}>{emoji}</button>)}</div></div>
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">{TEAMS.slice(0, room.teamCount ?? 4).map((team, index) => {
+          const memberCount = room.members?.[index]?.length ?? 0
+          return <button key={team.name} disabled={loading || !playerName.trim()} onClick={() => joinTeam(index)} className="rounded-3xl border-2 p-5 text-center disabled:cursor-not-allowed disabled:opacity-45" style={{ borderColor: team.color, backgroundColor: team.pale }}><span className="text-5xl">{team.animal}</span><strong className="mt-2 block text-lg" style={{ color: team.color }}>{room.teamNames[index]}</strong><span className="mt-1 block text-xs font-black text-[#6e756f]">{memberCount ? `${memberCount} คน · เข้าร่วมได้` : 'ยังว่าง · เลือกกลุ่มนี้'}</span></button>
         })}</div>
         {error && <p className="mt-4 rounded-xl bg-[#fff0eb] px-4 py-3 text-center font-black text-[#a33b2f]">{error}</p>}
       </div>}
@@ -639,12 +652,12 @@ function ClassroomHome({ onOpenSession }) {
   </main>
 }
 
-function RoomControlBar({ code, status, occupiedTeams, onToggle, onUnlock, onLeave }) {
+function RoomControlBar({ teams, code, status, members, occupiedTeams, onToggle, onUnlock, onLeave }) {
   const [copied, setCopied] = useState(false)
   const copyCode = async () => { try { await navigator.clipboard.writeText(code); setCopied(true); window.setTimeout(() => setCopied(false), 1200) } catch {} }
   return <section className="mb-2 flex flex-wrap items-center gap-2 rounded-2xl bg-[#fff4d9] px-3 py-2 shadow-sm">
     <div className="flex items-center gap-2"><Wifi size={18} className="text-[#8b581c]"/><span className="text-xs font-black text-[#7b674e]">รหัสห้อง</span><strong className="text-2xl font-black tracking-[.16em] text-[#5d390f]">{code}</strong><button onClick={copyCode} className="grid size-9 place-items-center rounded-lg bg-white text-[#7c5425]" aria-label="คัดลอกรหัสห้อง"><Copy size={16}/></button>{copied && <span className="text-xs font-black text-[#27704b]">คัดลอกแล้ว</span>}</div>
-    <div className="flex flex-1 flex-wrap justify-center gap-1">{TEAMS.map((team, index) => <button key={team.name} onClick={() => occupiedTeams.includes(index) && onUnlock(index)} className={`rounded-full px-2 py-1 text-xs font-black ${occupiedTeams.includes(index) ? 'bg-white' : 'bg-black/5 opacity-45'}`} style={{ color: team.color }} title={occupiedTeams.includes(index) ? 'แตะเพื่อปลดล็อกกลุ่ม' : 'ยังไม่มีผู้เข้า'}>{team.animal} {occupiedTeams.includes(index) ? 'เชื่อมต่อ' : 'ว่าง'}</button>)}</div>
+    <div className="flex flex-1 flex-wrap justify-center gap-1">{teams.map((team, index) => <button key={team.name} onClick={() => occupiedTeams.includes(index) && onUnlock(index)} className={`rounded-full px-2 py-1 text-xs font-black ${occupiedTeams.includes(index) ? 'bg-white' : 'bg-black/5 opacity-45'}`} style={{ color: team.color }} title={occupiedTeams.includes(index) ? 'แตะเพื่อนำสมาชิกทั้งกลุ่มออก' : 'ยังไม่มีผู้เข้า'}>{team.animal} {members[index]?.length ? `${members[index].length} คน` : 'ว่าง'}</button>)}</div>
     <button onClick={onToggle} className={`flex min-h-10 items-center gap-2 rounded-xl px-4 font-black ${status === 'playing' ? 'bg-[#fff] text-[#9b5220]' : 'bg-[#193b2b] text-white'}`}>{status === 'playing' ? <><Pause size={17}/> พักกิจกรรม</> : <><Play size={17}/> เริ่มกิจกรรม</>}</button>
     <button onClick={onLeave} className="grid size-10 place-items-center rounded-xl bg-white text-[#8e4b3c]" aria-label="ออกจากห้อง"><LogOut size={18}/></button>
   </section>
@@ -706,7 +719,8 @@ function StudentRoom({ session, onLeaveRoom }) {
 
   const updateAnswer = (nextAnswer) => {
     answerRef.current = nextAnswer
-    const answers = Array.isArray(state[key]) && state[key].length === 4 ? state[key].map((item) => [...item]) : blankAnswers()
+    const roomTeamCount = state.teamCount ?? payload.room?.teamCount ?? 4
+    const answers = Array.isArray(state[key]) && state[key].length >= roomTeamCount ? state[key].map((item) => [...item]) : blankAnswers(roomTeamCount)
     answers[teamIndex] = nextAnswer
     setPayload((current) => ({ ...current, state: { ...current.state, [key]: answers } }))
     sending.current += 1
@@ -733,7 +747,7 @@ function StudentRoom({ session, onLeaveRoom }) {
 
   return <main className="paper-grid min-h-screen p-3">
     <div className="mx-auto max-w-3xl">
-      <header className="mb-3 flex items-center gap-3 rounded-3xl p-4 text-white shadow-lg" style={{ backgroundColor: team.color }}><span className="text-4xl">{team.animal}</span><div className="min-w-0 flex-1"><p className="text-xs font-black opacity-75">ห้อง {session.code}</p><h1 className="truncate text-2xl font-black">{team.name}</h1></div><button onClick={leave} className="grid size-11 place-items-center rounded-xl bg-white/20" aria-label="ออกจากกลุ่ม"><LogOut/></button></header>
+      <header className="mb-3 flex items-center gap-3 rounded-3xl p-4 text-white shadow-lg" style={{ backgroundColor: team.color }}><span className="text-4xl">{session.emoji ?? team.animal}</span><div className="min-w-0 flex-1"><p className="text-xs font-black opacity-75">{session.name ?? 'สมาชิก'} · ห้อง {session.code}</p><h1 className="truncate text-2xl font-black">{team.name}</h1></div><button onClick={leave} className="grid size-11 place-items-center rounded-xl bg-white/20" aria-label="ออกจากกลุ่ม"><LogOut/></button></header>
       {error && <p className="mb-3 rounded-xl bg-[#fff0eb] px-3 py-2 text-center text-sm font-black text-[#a33b2f]">{error}</p>}
       {state.roomStatus !== 'playing' ? <section className="grid min-h-[55vh] place-items-center rounded-[28px] bg-white p-8 text-center shadow-xl"><div><LoaderCircle className="mx-auto animate-spin text-[#d78a25]" size={48}/><p className="mt-4 text-sm font-black text-[#8b7559]">ครูเลือกกิจกรรม</p><h2 className="text-3xl font-black text-[#193b2b]">{title}</h2><p className="mt-2 font-bold text-[#68736d]">รอครูกดเริ่มกิจกรรม หน้านี้จะเปลี่ยนอัตโนมัติ</p></div></section> : finishedNow ? <section className="grid min-h-[55vh] place-items-center rounded-[28px] bg-white p-8 text-center shadow-xl"><div><Trophy className="mx-auto text-[#d88b20]" size={64}/><p className="mt-4 font-black text-[#a76c1d]">จบกิจกรรม {title}</p><h2 className="text-4xl font-black text-[#193b2b]">เก่งมาก!</h2><p className="mt-2 font-bold text-[#68736d]">รอครูเริ่มรอบใหม่หรือเลือกกิจกรรมถัดไป</p></div></section> : <>
         <div className="mb-3 flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm"><div><p className="text-xs font-black text-[#778078]">กำลังเล่น</p><h2 className="text-xl font-black text-[#193b2b]">{title}</h2></div><span className="rounded-full bg-[#e6f5ec] px-3 py-1 text-sm font-black text-[#20704a]">ข้อ {(questionIndex ?? 0) + 1}</span></div>
@@ -747,6 +761,77 @@ function StudentRoom({ session, onLeaveRoom }) {
   </main>
 }
 
+function SoloPractice({ onLeaveRoom }) {
+  const savedProfile = (() => { try { return JSON.parse(localStorage.getItem('factor-rally-solo-profile-v1')) } catch { return null } })()
+  const [name, setName] = useState(savedProfile?.name ?? '')
+  const [emoji, setEmoji] = useState(savedProfile?.emoji ?? MEMBER_EMOJIS[0])
+  const [started, setStarted] = useState(Boolean(savedProfile?.name))
+  const [activity, setActivity] = useState('intro')
+  const [questionIndex, setQuestionIndex] = useState(0)
+  const [answer, setAnswer] = useState([])
+  const [revealed, setRevealed] = useState(false)
+  const [score, setScore] = useState(0)
+  const [finished, setFinished] = useState(false)
+  const totalQuestions = 10
+  const team = { ...TEAMS[0], name: name || 'ผู้เล่น', animal: emoji }
+  const question = activity === 'intro' ? DISTRIBUTIVE_QUESTIONS[questionIndex % DISTRIBUTIVE_QUESTIONS.length]
+    : activity === 'guided' ? POSITIVE_GUIDED_QUESTIONS[questionIndex % POSITIVE_GUIDED_QUESTIONS.length]
+      : activity === 'factor' ? MIXED_FACTOR_QUESTIONS[questionIndex % MIXED_FACTOR_QUESTIONS.length]
+        : QUESTIONS[questionIndex % QUESTIONS.length]
+  const ready = activity === 'intro' ? isDistributiveReady(answer, question)
+    : activity === 'guided' ? answer.filter(Number.isFinite).length === 2
+      : activity === 'factor' ? answer.filter(Number.isFinite).length === 4
+        : answer.length === 2
+  const correct = activity === 'intro' ? isDistributiveCorrect(answer, question)
+    : activity === 'guided' ? isGuidedCorrect(answer, question)
+      : activity === 'factor' ? isFactorCorrect(answer, question)
+        : isCorrect(answer, question)
+  const title = activity === 'intro' ? 'แจกแจงให้แจ่ม' : activity === 'guided' ? 'คู่คิดพิชิตวงเล็บ' : activity === 'factor' ? 'นักสืบตัวประกอบ' : 'คู่คูณชวนคิด'
+
+  const resetAnswer = (nextActivity = activity) => {
+    setAnswer(nextActivity === 'guided' ? [null, null] : nextActivity === 'factor' ? [null, null, null, null] : [])
+    setRevealed(false)
+  }
+  const chooseActivity = (nextActivity) => {
+    setActivity(nextActivity); setQuestionIndex(0); setScore(0); setFinished(false); resetAnswer(nextActivity)
+  }
+  const updateSlot = (slot, value, size) => setAnswer((current) => {
+    const next = current.length === size ? [...current] : Array(size).fill(null)
+    next[slot] = value
+    return next
+  })
+  const selectPair = (number) => setAnswer((current) => current.includes(number) ? current.filter((value) => value !== number) : current.length < 2 ? [...current, number] : [current[1], number])
+  const check = () => {
+    if (!ready || revealed) return
+    setRevealed(true)
+    if (correct) setScore((value) => value + 1)
+    playFeedbackSound([correct])
+  }
+  const next = () => {
+    if (questionIndex + 1 >= totalQuestions) return setFinished(true)
+    setQuestionIndex((value) => value + 1)
+    resetAnswer()
+  }
+  const begin = (event) => {
+    event.preventDefault()
+    if (!name.trim()) return
+    localStorage.setItem('factor-rally-solo-profile-v1', JSON.stringify({ name: name.trim(), emoji }))
+    setName(name.trim()); setStarted(true)
+  }
+
+  if (!started) return <main className="paper-grid grid min-h-screen place-items-center p-4"><form onSubmit={begin} className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl"><button type="button" onClick={onLeaveRoom} className="mb-4 flex items-center gap-1 font-bold text-[#657068]"><ArrowLeft size={18}/> กลับ</button><div className="text-center"><span className="text-5xl">✏️</span><h1 className="mt-2 text-3xl font-black text-[#193b2b]">ฝึกเล่นคนเดียว</h1><p className="mt-1 font-bold text-[#68736d]">ตั้งชื่อก่อนเริ่มฝึก ระบบจะตรวจคำตอบให้ทันที</p></div><label className="mt-5 block text-sm font-black">ชื่อของฉัน</label><input autoFocus value={name} onChange={(event) => setName(event.target.value)} maxLength={24} className="mt-2 min-h-12 w-full rounded-xl border-2 border-[#d7d2c8] px-4 text-lg font-bold outline-none focus:border-[#40755b]" placeholder="เช่น น้องมิน"/><p className="mt-5 text-sm font-black">เลือกหน้าอิโมจิ</p><div className="mt-2 grid grid-cols-6 gap-2">{MEMBER_EMOJIS.map((item) => <button type="button" key={item} onClick={() => setEmoji(item)} className={`grid aspect-square place-items-center rounded-xl border-2 text-2xl ${emoji === item ? 'border-[#193b2b] bg-[#e9f2ed]' : 'border-[#e3ded4]'}`}>{item}</button>)}</div><button disabled={!name.trim()} className="mt-6 min-h-13 w-full rounded-xl bg-[#193b2b] px-5 py-3 text-lg font-black text-white disabled:opacity-35">เริ่มฝึก</button></form></main>
+
+  if (finished) return <main className="paper-grid grid min-h-screen place-items-center p-4"><section className="w-full max-w-xl rounded-[30px] bg-white p-8 text-center shadow-2xl"><Trophy className="mx-auto text-[#d88b20]" size={64}/><p className="mt-3 text-5xl">{emoji}</p><h1 className="mt-2 text-4xl font-black text-[#193b2b]">เก่งมาก {name}!</h1><p className="mt-3 text-xl font-bold text-[#68736d]">ทำได้ {score}/{totalQuestions} คะแนน</p><div className="mt-6 grid grid-cols-2 gap-3"><button onClick={onLeaveRoom} className="min-h-12 rounded-xl bg-[#eeeae1] font-bold">กลับหน้าหลัก</button><button onClick={() => chooseActivity(activity)} className="min-h-12 rounded-xl bg-[#193b2b] font-black text-white">ฝึกอีกครั้ง</button></div></section></main>
+
+  const introSize = activity === 'intro' ? (question.common === 1 ? 3 : 4) + (question.innerA === 1 ? 0 : 1) : 0
+  return <main className="paper-grid min-h-screen p-3"><div className="mx-auto max-w-3xl"><header className="mb-3 flex flex-wrap items-center gap-3 rounded-3xl bg-[#193b2b] p-4 text-white shadow-lg"><span className="text-4xl">{emoji}</span><div className="min-w-0 flex-1"><p className="text-xs font-black text-white/65">โหมดฝึกคนเดียว</p><h1 className="truncate text-2xl font-black">{name} · {score} คะแนน</h1></div><button onClick={onLeaveRoom} className="grid size-11 place-items-center rounded-xl bg-white/15"><LogOut/></button></header><div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{[['intro', '1 แจกแจง'], ['pairs', '1.1 คู่คูณ'], ['guided', '1.2 คู่คิด'], ['factor', '2 นักสืบ']].map(([value, label]) => <button key={value} onClick={() => chooseActivity(value)} className={`min-h-10 rounded-xl text-sm font-black ${activity === value ? 'bg-[#ffd05a] text-[#473510]' : 'bg-white text-[#647069]'}`}>{label}</button>)}</div><div className="mb-3 flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm"><div><p className="text-xs font-black text-[#778078]">กำลังฝึก</p><h2 className="text-xl font-black text-[#193b2b]">{title}</h2></div><span className="rounded-full bg-[#e6f5ec] px-3 py-1 text-sm font-black text-[#20704a]">ข้อ {questionIndex + 1}/{totalQuestions}</span></div>
+    {activity === 'intro' ? <DistributivePlayArea teams={[team]} teamNames={[team.name]} questions={[question]} index={questionIndex} totalQuestions={totalQuestions} answers={[answer]} revealed={revealed} hideControls onSelect={(_, slot, value) => updateSlot(slot, value, introSize)}/>
+      : activity === 'guided' ? <GuidedPlayArea teams={[team]} teamNames={[team.name]} questions={[question]} index={questionIndex} answers={[answer]} revealed={revealed} numberMode="positive" hideControls onSelect={(_, slot, value) => updateSlot(slot, value, 2)}/>
+        : activity === 'factor' ? <FactorPlayArea teams={[team]} teamNames={[team.name]} questions={[question]} index={questionIndex} totalQuestions={totalQuestions} answers={[answer]} revealed={revealed} numberMode="mixed" hideControls onSelect={(_, slot, value) => updateSlot(slot, value, 4)}/>
+          : <><QuestionBanner question={question} index={questionIndex} totalQuestions={totalQuestions} revealed={revealed} mode="same" numberMode="positive"/><div className="mt-3"><TeamCard team={team} question={question} showQuestion integerMode={false} answer={answer} choices={Array.from({ length: 10 }, (_, i) => i + 1)} revealed={revealed} correct={revealed && correct} onSelect={selectPair}/></div></>}
+    <div className={`mt-3 rounded-2xl p-3 text-center font-black ${revealed ? (correct ? 'bg-[#dff5e8] text-[#17613e]' : 'bg-[#fff0eb] text-[#a33b2f]') : 'bg-white text-[#5f6c65]'}`}>{revealed ? (correct ? '🎉 ถูกต้อง เก่งมาก!' : 'ลองดูเฉลยแล้วจำวิธีไว้ฝึกข้อต่อไปนะ') : 'เลือกคำตอบให้ครบ แล้วกดตรวจคำตอบ'}<button onClick={revealed ? next : check} disabled={!revealed && !ready} className="mx-auto mt-3 flex min-h-12 w-full max-w-md items-center justify-center gap-2 rounded-xl bg-[#193b2b] px-5 text-lg font-black text-white disabled:opacity-35">{revealed ? <>ข้อต่อไป <ChevronRight/></> : <><Check/> ตรวจคำตอบ</>}</button></div></div></main>
+}
+
 function SaveStatus({ status }) {
   const states = {
     loading: { icon: <LoaderCircle className="animate-spin" size={14}/>, text: 'กำลังเชื่อมต่อ' },
@@ -758,11 +843,11 @@ function SaveStatus({ status }) {
   return <span className={`hidden min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-black xl:flex ${status === 'offline' ? 'bg-[#fff0e7] text-[#a7462b]' : 'bg-[#e7f3eb] text-[#276647]'}`}>{current.icon}{current.text}</span>
 }
 
-function ScoreSidebar({ scores, answers, members, teamNames, questions, totalQuestions, revealed, isAnswerCorrect = isCorrect, isAnswerReady, answerSize = 2, onAdjustScore, onAdd, onRemove }) {
+function ScoreSidebar({ teams, scores, answers, members, teamNames, questions, totalQuestions, revealed, isAnswerCorrect = isCorrect, isAnswerReady, answerSize = 2, onAdjustScore, onAdd, onRemove }) {
   return <aside className="score-sidebar rounded-[24px] bg-[#173c2c] p-3 text-white shadow-xl" aria-label="แถบคะแนนด้านซ้าย">
     <div className="flex items-center justify-between px-2 py-2"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#acc8b9]">Score board</p><h2 className="text-lg font-black">พลังของทีม</h2></div><Trophy className="text-[#ffc45d]" size={26}/></div>
     <div className="score-team-grid mt-2 grid grid-cols-2 gap-2">
-      {TEAMS.map((team, index) => {
+      {teams.map((team, index) => {
         const correct = revealed && isAnswerCorrect(answers[index], questions[index])
         const ready = isAnswerReady ? isAnswerReady(answers[index], questions[index]) : answers[index].filter(Number.isFinite).length === answerSize
         return <div key={team.name} className="rounded-2xl p-3 text-[#1d2922]" style={{ backgroundColor: team.pale }}>
@@ -775,7 +860,7 @@ function ScoreSidebar({ scores, answers, members, teamNames, questions, totalQue
           <div className="mt-2 space-y-1">
             {members[index].map((member) => <div key={member.id} className="group flex items-center gap-1.5 rounded-lg bg-white/65 px-2 py-1 text-xs font-bold"><span className="text-base">{member.emoji}</span><span className="min-w-0 flex-1 truncate">{member.name}</span><span className="font-black" style={{ color: team.color }}>{scores[index]}</span><button onClick={() => onRemove(index, member.id)} className="ml-1 hidden text-[#9a5b55] group-hover:block" aria-label={`ลบ ${member.name}`}><Trash2 size={12}/></button></div>)}
           </div>
-          <button onClick={() => onAdd(index)} className="mt-2 flex min-h-8 w-full items-center justify-center gap-1 rounded-lg border border-dashed bg-white/45 text-xs font-black" style={{ borderColor: team.color, color: team.color }}><Plus size={13}/> เพิ่มสมาชิก</button>
+          {onAdd && <button onClick={() => onAdd(index)} className="mt-2 flex min-h-8 w-full items-center justify-center gap-1 rounded-lg border border-dashed bg-white/45 text-xs font-black" style={{ borderColor: team.color, color: team.color }}><Plus size={13}/> เพิ่มสมาชิก</button>}
         </div>
       })}
     </div>
@@ -783,7 +868,7 @@ function ScoreSidebar({ scores, answers, members, teamNames, questions, totalQue
   </aside>
 }
 
-function FactorSettingsModal({ names, mode, numberMode, totalQuestions = 10, currentQuestion, title = 'ตั้งค่านักสืบตัวประกอบ', icon = '🔎', showNumberMode = true, showQuestionCount = false, onCancel, onApply }) {
+function FactorSettingsModal({ teams, names, mode, numberMode, totalQuestions = 10, currentQuestion, title = 'ตั้งค่านักสืบตัวประกอบ', icon = '🔎', showNumberMode = true, showQuestionCount = false, onCancel, onApply }) {
   const [draftNames, setDraftNames] = useState(names)
   const [draftMode, setDraftMode] = useState(mode)
   const [draftNumberMode, setDraftNumberMode] = useState(numberMode)
@@ -792,11 +877,11 @@ function FactorSettingsModal({ names, mode, numberMode, totalQuestions = 10, cur
     <form onSubmit={(event) => { event.preventDefault(); onApply(draftNames, draftMode, draftNumberMode, draftTotal) }} className="w-full max-w-2xl rounded-[28px] bg-white p-6 shadow-2xl">
       <div className="flex items-center gap-3"><div className="grid size-12 place-items-center rounded-2xl bg-[#eee9ff] text-2xl">{icon}</div><div><p className="text-xs font-black uppercase tracking-wider text-[#8276b4]">Factor settings</p><h2 id="factor-settings-title" className="text-2xl font-black">{title}</h2></div></div>
       <p className="mt-5 text-sm font-black text-[#4e5a53]">ชื่อกลุ่ม</p>
-      <div className="mt-2 grid grid-cols-2 gap-3">{TEAMS.map((team, index) => <label key={team.name} className="flex items-center gap-2 rounded-xl border-2 p-2" style={{ borderColor: team.color, backgroundColor: team.pale }}><span className="text-2xl">{team.animal}</span><input value={draftNames[index]} onChange={(event) => setDraftNames((current) => current.map((name, i) => i === index ? event.target.value : name))} maxLength={20} className="min-w-0 flex-1 rounded-lg bg-white/85 px-3 py-2 font-black outline-none" aria-label={`ชื่อกลุ่มที่ ${index + 1}`}/></label>)}</div>
+      <div className="mt-2 grid grid-cols-2 gap-3">{teams.map((team, index) => <label key={team.name} className="flex items-center gap-2 rounded-xl border-2 p-2" style={{ borderColor: team.color, backgroundColor: team.pale }}><span className="text-2xl">{team.animal}</span><input value={draftNames[index]} onChange={(event) => setDraftNames((current) => current.map((name, i) => i === index ? event.target.value : name))} maxLength={20} className="min-w-0 flex-1 rounded-lg bg-white/85 px-3 py-2 font-black outline-none" aria-label={`ชื่อกลุ่มที่ ${index + 1}`}/></label>)}</div>
 
       <p className="mt-5 text-sm font-black text-[#4e5a53]">รูปแบบโจทย์</p>
       <div className="mt-2 grid gap-3 sm:grid-cols-2">
-        <button type="button" onClick={() => setDraftMode('same')} className={`rounded-2xl border-2 p-4 text-left ${draftMode === 'same' ? 'border-[#2878c8] bg-[#e8f2ff]' : 'border-[#ded8cb]'}`}><strong className="text-lg">👥 โจทย์เหมือนกัน</strong><p className="mt-1 text-sm font-bold text-[#68736d]">ทั้ง 4 กลุ่มแก้สมการเดียวกัน</p></button>
+        <button type="button" onClick={() => setDraftMode('same')} className={`rounded-2xl border-2 p-4 text-left ${draftMode === 'same' ? 'border-[#2878c8] bg-[#e8f2ff]' : 'border-[#ded8cb]'}`}><strong className="text-lg">👥 โจทย์เหมือนกัน</strong><p className="mt-1 text-sm font-bold text-[#68736d]">ทั้ง {teams.length} กลุ่มแก้สมการเดียวกัน</p></button>
         <button type="button" onClick={() => setDraftMode('different')} className={`rounded-2xl border-2 p-4 text-left ${draftMode === 'different' ? 'border-[#e76f2e] bg-[#fff0e7]' : 'border-[#ded8cb]'}`}><strong className="text-lg">🔥 โจทย์แตกต่างกัน</strong><p className="mt-1 text-sm font-bold text-[#68736d]">แต่ละการ์ดมีสมการของกลุ่มตัวเอง</p></button>
       </div>
 
@@ -818,7 +903,7 @@ function FactorSettingsModal({ names, mode, numberMode, totalQuestions = 10, cur
   </div>
 }
 
-function SettingsModal({ names, mode, numberMode, totalQuestions, currentQuestion, onCancel, onApply }) {
+function SettingsModal({ teams, names, mode, numberMode, totalQuestions, currentQuestion, onCancel, onApply }) {
   const [draftNames, setDraftNames] = useState(names)
   const [draftMode, setDraftMode] = useState(mode)
   const [draftNumberMode, setDraftNumberMode] = useState(numberMode)
@@ -827,10 +912,10 @@ function SettingsModal({ names, mode, numberMode, totalQuestions, currentQuestio
     <form onSubmit={(event) => { event.preventDefault(); onApply(draftNames, draftMode, draftNumberMode, draftTotal) }} className="w-full max-w-2xl rounded-[28px] bg-white p-6 shadow-2xl">
       <div className="flex items-center gap-3"><div className="grid size-12 place-items-center rounded-2xl bg-[#e8f1ec] text-[#193b2b]"><Settings size={26}/></div><div><p className="text-xs font-black uppercase tracking-wider text-[#718078]">Game settings</p><h2 id="settings-title" className="text-2xl font-black">ตั้งชื่อกลุ่มและเลือกโหมด</h2></div></div>
       <p className="mt-5 text-sm font-black text-[#4e5a53]">ชื่อกลุ่ม</p>
-      <div className="mt-2 grid grid-cols-2 gap-3">{TEAMS.map((team, index) => <label key={team.name} className="flex items-center gap-2 rounded-xl border-2 p-2" style={{ borderColor: team.color, backgroundColor: team.pale }}><span className="text-2xl">{team.animal}</span><input value={draftNames[index]} onChange={(event) => setDraftNames((current) => current.map((name, i) => i === index ? event.target.value : name))} maxLength={20} className="min-w-0 flex-1 rounded-lg bg-white/85 px-3 py-2 font-black outline-none" aria-label={`ชื่อกลุ่มที่ ${index + 1}`}/></label>)}</div>
+      <div className="mt-2 grid grid-cols-2 gap-3">{teams.map((team, index) => <label key={team.name} className="flex items-center gap-2 rounded-xl border-2 p-2" style={{ borderColor: team.color, backgroundColor: team.pale }}><span className="text-2xl">{team.animal}</span><input value={draftNames[index]} onChange={(event) => setDraftNames((current) => current.map((name, i) => i === index ? event.target.value : name))} maxLength={20} className="min-w-0 flex-1 rounded-lg bg-white/85 px-3 py-2 font-black outline-none" aria-label={`ชื่อกลุ่มที่ ${index + 1}`}/></label>)}</div>
       <p className="mt-5 text-sm font-black text-[#4e5a53]">รูปแบบโจทย์</p>
       <div className="mt-2 grid gap-3 sm:grid-cols-2">
-        <button type="button" onClick={() => setDraftMode('same')} className={`rounded-2xl border-2 p-4 text-left ${draftMode === 'same' ? 'border-[#2878c8] bg-[#e8f2ff]' : 'border-[#ded8cb]'}`}><div className="flex items-center gap-2"><span className="text-2xl">🤝</span><strong className="text-lg">โจทย์เหมือนกัน</strong></div><p className="mt-1 text-sm font-bold text-[#68736d]">ทั้ง 4 กลุ่มแก้โจทย์เดียวกัน เหมาะสำหรับเริ่มเล่น</p></button>
+        <button type="button" onClick={() => setDraftMode('same')} className={`rounded-2xl border-2 p-4 text-left ${draftMode === 'same' ? 'border-[#2878c8] bg-[#e8f2ff]' : 'border-[#ded8cb]'}`}><div className="flex items-center gap-2"><span className="text-2xl">🤝</span><strong className="text-lg">โจทย์เหมือนกัน</strong></div><p className="mt-1 text-sm font-bold text-[#68736d]">ทั้ง {teams.length} กลุ่มแก้โจทย์เดียวกัน เหมาะสำหรับเริ่มเล่น</p></button>
         <button type="button" onClick={() => setDraftMode('different')} className={`rounded-2xl border-2 p-4 text-left ${draftMode === 'different' ? 'border-[#e76f2e] bg-[#fff0e7]' : 'border-[#ded8cb]'}`}><div className="flex items-center gap-2"><span className="text-2xl">🔥</span><strong className="text-lg">โจทย์แตกต่างกัน</strong></div><p className="mt-1 text-sm font-bold text-[#68736d]">แต่ละกลุ่มได้โจทย์ของตัวเอง เพิ่มความท้าทาย</p></button>
       </div>
       <p className="mt-5 text-sm font-black text-[#4e5a53]">จำนวนข้อ</p>
@@ -889,8 +974,8 @@ function TeamCard({ team, question, showQuestion, integerMode, answer, choices, 
   </article>
 }
 
-function resultText(answers, questions, teamNames) {
-  const winners = TEAMS.map((_, index) => index).filter((index) => isCorrect(answers[index], questions[index])).map((index) => teamNames[index])
+function resultText(answers, questions, teamNames, teams = TEAMS) {
+  const winners = teams.map((_, index) => index).filter((index) => isCorrect(answers[index], questions[index])).map((index) => teamNames[index])
   return winners.length ? `${winners.join(', ')} ได้กลุ่มละ 1 คะแนน` : 'ข้อนี้ยังไม่มีกลุ่มตอบถูก'
 }
 
@@ -898,14 +983,14 @@ function ConfirmReset({ onCancel, onConfirm }) {
   return <div className="fixed inset-0 z-20 grid place-items-center bg-[#17231d]/60 p-4 backdrop-blur-sm"><div className="w-full max-w-sm rounded-[28px] bg-white p-6 text-center shadow-2xl"><RotateCcw className="mx-auto text-[#d76824]" size={38}/><h2 className="mt-3 text-2xl font-black">รีเซตคะแนนทั้งหมด?</h2><p className="mt-2 text-[#69716c]">คะแนนของทุกทีมในทุกกิจกรรมจะกลับเป็น 0 แต่โจทย์ปัจจุบันยังอยู่เหมือนเดิม</p><div className="mt-5 grid grid-cols-2 gap-3"><button onClick={onCancel} className="min-h-12 rounded-xl bg-[#eeeae1] font-bold">ยกเลิก</button><button onClick={onConfirm} className="min-h-12 rounded-xl bg-[#d85e35] font-bold text-white">รีเซตคะแนน</button></div></div></div>
 }
 
-function Results({ scores, members, teamNames, totalQuestions, onReset, onLeave, activityName = 'คู่คูณชวนคิด' }) {
+function Results({ teams, scores, members, teamNames, totalQuestions, onReset, onLeave, activityName = 'คู่คูณชวนคิด' }) {
   const top = Math.max(...scores)
-  const winnerIndexes = TEAMS.map((_, index) => index).filter((index) => scores[index] === top)
+  const winnerIndexes = teams.map((_, index) => index).filter((index) => scores[index] === top)
   return <main className="paper-grid grid min-h-screen place-items-center p-5">
     <div className="w-full max-w-4xl text-center">
       <Trophy className="mx-auto text-[#d88b20]" size={64}/><p className="mt-3 font-black text-[#a76c1d]">{activityName} · จบครบ {totalQuestions} ข้อ</p><h1 className="text-5xl font-black text-[#193b2b]">เก่งมากทุกทีม!</h1>
-      <p className="mt-2 text-lg font-bold text-[#647069]">ผู้ชนะคือ {winnerIndexes.map((index) => `${TEAMS[index].animal} ${teamNames[index]}`).join(' และ ')} · {top} คะแนน</p>
-      <div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">{TEAMS.map((team, index) => <div key={team.name} className="rounded-3xl border-2 p-5" style={{ backgroundColor: team.pale, borderColor: team.color }}><div className="text-5xl">{team.animal}</div><h2 className="mt-2 font-black" style={{ color: team.color }}>{teamNames[index]}</h2><p className="text-4xl font-black" style={{ color: team.color }}>{scores[index]}</p><div className="mt-3 space-y-1">{members[index].map((member) => <div key={member.id} className="flex items-center rounded-lg bg-white/70 px-2 py-1 text-xs font-bold"><span className="mr-1">{member.emoji}</span><span className="flex-1 truncate text-left">{member.name}</span><strong style={{ color: team.color }}>{scores[index]}</strong></div>)}</div></div>)}</div>
+      <p className="mt-2 text-lg font-bold text-[#647069]">ผู้ชนะคือ {winnerIndexes.map((index) => `${teams[index].animal} ${teamNames[index]}`).join(' และ ')} · {top} คะแนน</p>
+      <div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-3">{teams.map((team, index) => <div key={team.name} className="rounded-3xl border-2 p-5" style={{ backgroundColor: team.pale, borderColor: team.color }}><div className="text-5xl">{team.animal}</div><h2 className="mt-2 font-black" style={{ color: team.color }}>{teamNames[index]}</h2><p className="text-4xl font-black" style={{ color: team.color }}>{scores[index]}</p><div className="mt-3 space-y-1">{members[index].map((member) => <div key={member.id} className="flex items-center rounded-lg bg-white/70 px-2 py-1 text-xs font-bold"><span className="mr-1">{member.emoji}</span><span className="flex-1 truncate text-left">{member.name}</span><strong style={{ color: team.color }}>{scores[index]}</strong></div>)}</div></div>)}</div>
       <div className="mt-7 flex flex-wrap justify-center gap-3">
         <button onClick={onLeave} className="inline-flex min-h-14 items-center gap-2 rounded-2xl border-2 border-[#cfc8bb] bg-white px-6 text-lg font-black text-[#59645e]"><ArrowLeft/> กลับหน้าสร้างห้อง</button>
         <button onClick={onReset} className="inline-flex min-h-14 items-center gap-2 rounded-2xl bg-[#193b2b] px-8 text-lg font-black text-white"><RotateCcw/> เล่นอีกครั้ง</button>

@@ -84,7 +84,7 @@ export function FactorPlayArea({ teams, teamNames, questions, index, totalQuesti
   const choices = numberMode === 'mixed' ? MIXED_CHOICES : POSITIVE_CHOICES
 
   return <>
-    <section className="team-board-grid grid gap-3" aria-label="ตารางแยกตัวประกอบของทั้งสี่กลุ่ม">
+    <section className="team-board-grid grid gap-3" aria-label={`ตารางแยกตัวประกอบของ ${teams.length} กลุ่ม`}>
       {teams.map((team, teamIndex) => <FactorTeamCard
         key={team.name}
         team={{ ...team, name: teamNames[teamIndex] }}
@@ -102,7 +102,7 @@ export function FactorPlayArea({ teams, teamNames, questions, index, totalQuesti
       <p className="hidden flex-1 pl-2 text-sm font-bold text-[#70776f] sm:block">
         {revealed
           ? (winners.length ? `${winners.join(', ')} ได้กลุ่มละ 1 คะแนน` : 'ข้อนี้ยังไม่มีกลุ่มตอบถูก ลองดูคำใบ้ก่อนเริ่มข้อถัดไป')
-          : `พร้อมแล้ว ${answers.filter(filled).length}/4 กลุ่ม`}
+          : `พร้อมแล้ว ${answers.slice(0, teams.length).filter(filled).length}/${teams.length} กลุ่ม`}
       </p>
       <button onClick={revealed ? onNext : onReveal} disabled={!revealed && !allReady} className={`flex min-h-14 flex-1 items-center justify-center gap-2 rounded-xl px-6 text-lg font-black sm:max-w-md ${revealed ? 'bg-[#30265f] text-white' : 'bg-[#ffd05a] text-[#352111]'} disabled:cursor-not-allowed disabled:opacity-35`}>
         {revealed ? <>ข้อต่อไป <ChevronRight/></> : <><Eye/> ครูตรวจพร้อมกัน</>}

@@ -58,7 +58,7 @@ export function DistributivePlayArea({ teams, teamNames, questions, index, total
       <div className="min-w-0 flex-1"><p className="text-xs font-black text-[#f3d8ad]">ชุดกิจกรรมที่ 1 · ข้อ {index + 1}/{totalQuestions}</p><h2 className="text-xl font-black">ดึงตัวประกอบร่วม โดยใช้สมบัติการแจกแจง</h2><p className="text-sm font-bold text-[#f7e8cf]">เติมตัวเลขและ x ในช่องว่างให้ได้นิพจน์ที่ถูกต้อง</p></div>
     </section>
 
-    <section className="team-board-grid grid gap-3" aria-label="คำตอบสมบัติการแจกแจงของทั้งสี่กลุ่ม">
+    <section className="team-board-grid grid gap-3" aria-label={`คำตอบสมบัติการแจกแจงของ ${teams.length} กลุ่ม`}>
       {teams.map((team, teamIndex) => <DistributiveTeamCard
         key={`${team.name}-${index}`}
         team={{ ...team, name: teamNames[teamIndex] }}
@@ -70,7 +70,7 @@ export function DistributivePlayArea({ teams, teamNames, questions, index, total
     </section>
 
     {!hideControls && <div className="mt-3 flex items-center gap-3 rounded-2xl bg-white p-2 shadow-sm">
-      <p className="hidden flex-1 pl-2 text-sm font-bold text-[#70776f] sm:block">{revealed ? (winners.length ? `${winners.join(', ')} ได้กลุ่มละ 1 คะแนน` : 'ข้อนี้ยังไม่มีกลุ่มตอบถูก') : `พร้อมแล้ว ${answers.filter((answer, teamIndex) => isDistributiveReady(answer, questions[teamIndex])).length}/4 กลุ่ม`}</p>
+      <p className="hidden flex-1 pl-2 text-sm font-bold text-[#70776f] sm:block">{revealed ? (winners.length ? `${winners.join(', ')} ได้กลุ่มละ 1 คะแนน` : 'ข้อนี้ยังไม่มีกลุ่มตอบถูก') : `พร้อมแล้ว ${answers.filter((answer, teamIndex) => teamIndex < teams.length && isDistributiveReady(answer, questions[teamIndex])).length}/${teams.length} กลุ่ม`}</p>
       <button onClick={revealed ? onNext : onReveal} disabled={!revealed && !allReady} className={`flex min-h-14 flex-1 items-center justify-center gap-2 rounded-xl px-6 text-lg font-black sm:max-w-md ${revealed ? 'bg-[#6d4317] text-white' : 'bg-[#ffd27a] text-[#54320e]'} disabled:cursor-not-allowed disabled:opacity-35`}>
         {revealed ? <>ข้อต่อไป <ChevronRight/></> : <><Eye/> ครูตรวจพร้อมกัน</>}
       </button>
