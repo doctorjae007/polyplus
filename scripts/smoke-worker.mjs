@@ -7,6 +7,7 @@ const database = new DatabaseSync(':memory:')
 database.exec(await readFile(new URL('../drizzle/0000_game_state.sql', import.meta.url), 'utf8'))
 database.exec(await readFile(new URL('../drizzle/0001_classroom_rooms.sql', import.meta.url), 'utf8'))
 database.exec(await readFile(new URL('../drizzle/0002_classroom_players.sql', import.meta.url), 'utf8'))
+database.exec(await readFile(new URL('../drizzle/0003_individual_competition.sql', import.meta.url), 'utf8'))
 
 const DB = {
   prepare(sql) {
@@ -56,5 +57,21 @@ const teammate = await call(`/api/rooms/${created.code}/join`, { method: 'POST',
 assert.equal(teammate.status, 201)
 const roomWithPlayers = await (await call(`/api/rooms/${created.code}`)).json()
 assert.equal(roomWithPlayers.room.members[0].length, 2)
+
+const individualCreated = await (await call('/api/rooms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roomMode: 'individual' }) })).json()
+assert.equal(individualCreated.roomMode, 'individual')
+const individualJoined = await (await call(`/api/rooms/${individualCreated.code}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ teamIndex: 0, deviceId: 'solo-phone', name: 'ฟ้า', emoji: '⭐' }) })).json()
+const fasterJoined = await (await call(`/api/rooms/${individualCreated.code}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ teamIndex: 0, deviceId: 'fast-phone', name: 'เร็ว', emoji: '🚀' }) })).json()
+const individualState = { roomMode: 'individual', teamCount: 1, activity: 'pairs', roomStatus: 'playing', individualQuestionIndex: 0, individualQuestionData: { m: 2, n: 5, product: 10, sum: 7 }, individualQuestionStartedAt: Date.now() - 1200, individualFinished: false }
+assert.equal((await call(`/api/rooms/${individualCreated.code}`, { method: 'PUT', headers: { Authorization: `Bearer ${individualCreated.teacherToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(individualState) })).status, 200)
+assert.equal((await call(`/api/rooms/${individualCreated.code}/individual-answer`, { method: 'PUT', headers: { Authorization: `Bearer ${individualJoined.playerToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ answer: [2, 5] }) })).status, 200)
+assert.equal((await call(`/api/rooms/${individualCreated.code}/individual-answer`, { method: 'PUT', headers: { Authorization: `Bearer ${individualJoined.playerToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ answer: [2, 5] }) })).status, 409)
+const fasterState = { ...individualState, individualQuestionStartedAt: Date.now() - 200 }
+assert.equal((await call(`/api/rooms/${individualCreated.code}`, { method: 'PUT', headers: { Authorization: `Bearer ${individualCreated.teacherToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(fasterState) })).status, 200)
+assert.equal((await call(`/api/rooms/${individualCreated.code}/individual-answer`, { method: 'PUT', headers: { Authorization: `Bearer ${fasterJoined.playerToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ answer: [5, 2] }) })).status, 200)
+const individualRoom = await (await call(`/api/rooms/${individualCreated.code}`)).json()
+assert.equal(individualRoom.room.leaderboard[0].correctCount, 1)
+assert.equal(individualRoom.room.leaderboard[0].name, 'เร็ว')
+assert.ok(individualRoom.room.leaderboard[0].correctTimeMs < individualRoom.room.leaderboard[1].correctTimeMs)
 
 console.log('Classroom worker smoke test passed')

@@ -20,6 +20,9 @@ export const classroomTeamsSchema = `CREATE TABLE classroom_players (
   device_id TEXT NOT NULL,
   name TEXT NOT NULL,
   emoji TEXT NOT NULL,
+  correct_count INTEGER NOT NULL DEFAULT 0,
+  correct_time_ms INTEGER NOT NULL DEFAULT 0,
+  last_answer_key TEXT NOT NULL DEFAULT '',
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (room_code, device_id),
   FOREIGN KEY (room_code) REFERENCES classroom_rooms(code) ON DELETE CASCADE
