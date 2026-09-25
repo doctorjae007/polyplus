@@ -1,9 +1,10 @@
-import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { copyFile, cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { extname, join, relative } from 'node:path'
 
 await mkdir('dist/server', { recursive: true })
 await mkdir('dist/.openai', { recursive: true })
 await copyFile('.openai/hosting.json', 'dist/.openai/hosting.json')
+await cp('drizzle', 'dist/.openai/drizzle', { recursive: true })
 const workerSource = await readFile('worker/index.js', 'utf8')
 const mimeTypes = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon' }
 const assets = []
